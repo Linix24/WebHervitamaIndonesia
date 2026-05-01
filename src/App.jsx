@@ -275,24 +275,24 @@ function App() {
               <div className="nav">
                 {currentRole === 'staff' ? (
                   <>
-                    <button className={tab==='home'?'active':''} onClick={()=>setTab('home')}><Home size={18}/> Dashboard</button>
-                    <button className={tab==='attendance'?'active':''} onClick={()=>setTab('attendance')}><Camera size={18}/> Absensi Online</button>
-                    <button className={tab==='request'?'active':''} onClick={()=>setTab('request')}><ClipboardList size={18}/> Pengajuan</button>
-                    <button className={tab==='history'?'active':''} onClick={()=>setTab('history')}><History size={18}/> Riwayat Saya</button>
+                    <button className={tab==='home'?'active':''} onClick={()=>setTab('home')}><Home size={18} color="#3b82f6"/> Dashboard</button>
+                    <button className={tab==='attendance'?'active':''} onClick={()=>setTab('attendance')}><Camera size={18} color="#f97316"/> Absensi Online</button>
+                    <button className={tab==='request'?'active':''} onClick={()=>setTab('request')}><ClipboardList size={18} color="#22c55e"/> Pengajuan</button>
+                    <button className={tab==='history'?'active':''} onClick={()=>setTab('history')}><History size={18} color="#a855f7"/> Riwayat Saya</button>
                   </>
                 ) : (
                   <>
-                    <button className={tab==='home'?'active':''} onClick={()=>setTab('home')}><Activity size={18}/> Ringkasan HR</button>
-                    <button className={tab==='monitor'?'active':''} onClick={()=>setTab('monitor')}><Users size={18}/> Monitoring Online</button>
-                    <button className={tab==='payroll'?'active':''} onClick={()=>setTab('payroll')}><DollarSign size={18}/> Rekap Payroll</button>
-                    <button className={tab==='approval'?'active':''} onClick={()=>setTab('approval')}><CheckSquare size={18}/> Approval</button>
-                    <button className={tab==='stafflist'?'active':''} onClick={()=>setTab('stafflist')}><Users size={18}/> Akun Staff</button>
-                    <button className={tab==='settings'?'active':''} onClick={()=>setTab('settings')}><Settings size={18}/> Aturan</button>
+                    <button className={tab==='home'?'active':''} onClick={()=>setTab('home')}><Activity size={18} color="#3b82f6"/> Ringkasan HR</button>
+                    <button className={tab==='monitor'?'active':''} onClick={()=>setTab('monitor')}><Users size={18} color="#06b6d4"/> Monitoring Online</button>
+                    <button className={tab==='payroll'?'active':''} onClick={()=>setTab('payroll')}><DollarSign size={18} color="#eab308"/> Rekap Payroll</button>
+                    <button className={tab==='approval'?'active':''} onClick={()=>setTab('approval')}><CheckSquare size={18} color="#10b981"/> Approval</button>
+                    <button className={tab==='stafflist'?'active':''} onClick={()=>setTab('stafflist')}><Users size={18} color="#f43f5e"/> Akun Staff</button>
+                    <button className={tab==='settings'?'active':''} onClick={()=>setTab('settings')}><Settings size={18} color="#64748b"/> Aturan</button>
                   </>
                 )}
               </div>
-              <div className="divider"></div>
-              <button className="btn ghost full" onClick={()=>setView('login')}><LogOut size={18}/> Keluar</button>
+              <div className="divider" style={{background:'rgba(255,255,255,0.1)'}}></div>
+              <button className="btn ghost full" style={{color:'#f87171'}} onClick={()=>setView('login')}><LogOut size={18} color="#f87171"/> Keluar</button>
             </aside>
             <main className="main">
               <div className="topbar">
