@@ -297,7 +297,10 @@ function App() {
             <main className="main">
               <div className="topbar">
                 <div><h2>{tab==='monitor'?'Monitoring Online':tab==='payroll'?'Rekap Payroll':tab==='stafflist'?'Kelola Akun Staff':tab==='settings'?'Aturan Absensi':tab.charAt(0).toUpperCase()+tab.slice(1)}</h2><small>{clock}</small></div>
-                <div className="live-badge"><span className={loading?"pulse warning":"pulse"}></span> {loading?"Syncing...":"Live Cloud"}</div>
+                <div className="live-badge">
+                  <small style={{opacity:0.5, marginRight:'10px'}}>v2.1.0-updated</small>
+                  <span className={loading?"pulse warning":"pulse"}></span> {loading?"Syncing...":"Live Cloud"}
+                </div>
               </div>
               <div className="grid animate-slide-up" key={tab}>
                 {currentRole === 'admin' ? (
