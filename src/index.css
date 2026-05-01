@@ -810,9 +810,25 @@ textarea {
 .table-tools .left,
 .table-tools .right {
   display: flex;
-  gap: 10px;
+  gap: 12px;
   align-items: center;
   flex-wrap: wrap;
+}
+
+.table-tools select {
+  height: 44px;
+  min-width: 180px;
+  border-radius: 14px;
+  border: 1px solid var(--line);
+  padding: 0 14px;
+  background: #fff;
+  font-weight: 800;
+  color: #344054;
+  outline: none;
+}
+.table-tools select:focus {
+  border-color: rgba(31, 111, 235, .55);
+  box-shadow: 0 0 0 4px rgba(31, 111, 235, .12);
 }
 
 .search {
@@ -1120,6 +1136,10 @@ textarea {
 
   .search {
     min-width: 100%;
+  }
+
+  .table-tools select {
+    width: 100%;
   }
 
   .btn-row .btn {

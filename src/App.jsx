@@ -3,7 +3,7 @@ import {
   Home, Camera, ClipboardList, History, Users, 
   Activity, Settings, LogOut, CheckCircle, Clock, 
   MapPin, AlertCircle, Search, Filter, MoreHorizontal,
-  ChevronDown, Plus, Trash2, Send, DollarSign, CheckSquare, Upload, Image, Navigation
+  ChevronDown, Plus, Trash2, Send, DollarSign, CheckSquare, Upload, Image, Navigation, X
 } from 'lucide-react';
 import { STAFF, ADMIN, DIVISIONS, LOCATIONS } from './data';
 import { 
@@ -30,6 +30,10 @@ function App() {
   const [statusFilter, setStatusFilter] = useState('Semua status');
   const [detecting, setDetecting] = useState(false);
   
+  // Manual Attendance Modal State
+  const [showManualModal, setShowManualModal] = useState(false);
+  const [manualForm, setManualForm] = useState({ staffId: '', checkIn: '08:00', checkOut: '', date: todayKey() });
+
   const camInputRef = useRef(null);
   const galleryInputRef = useRef(null);
 
@@ -138,6 +142,23 @@ function App() {
     if (error) showToast("Gagal menyimpan."); else { showToast("Data tersimpan!"); fetchData(); }
   };
 
+  const handleManualSubmit = async () => {
+    if (!manualForm.staffId) return showToast("Pilih karyawan!");
+    const staff = STAFF.find(s => s.id === manualForm.staffId);
+    const payload = {
+      staff_id: staff.id, staff_name: staff.name,
+      date: manualForm.date, check_in: manualForm.checkIn, check_out: manualForm.checkOut || null,
+      project: "Manual Input", work_type: "Kantor", note: "Input oleh Admin"
+    };
+    const existing = records.find(r => r.staff_id === staff.id && r.date === manualForm.date);
+    const { error } = existing ? await supabase.from('attendance').update(payload).eq('id', existing.id) : await supabase.from('attendance').insert([payload]);
+    if (error) showToast("Gagal menyimpan."); else {
+      showToast("Berhasil tambah absen!");
+      setShowManualModal(false);
+      fetchData();
+    }
+  };
+
   const updateRequestStatus = async (id, status) => {
     await supabase.from('requests').update({ status }).eq('id', id);
     showToast(`Request ${status}!`); fetchData();
@@ -228,9 +249,9 @@ function App() {
               {tab === 'monitor' && (
                 <div className="card">
                   <div className="table-tools">
-                    <div className="left" style={{display:'flex', gap:'10px'}}>
+                    <div className="left">
                       <div className="search"><Search size={14}/><input placeholder="Cari nama / username..." value={search} onChange={e=>setSearch(e.target.value)}/></div>
-                      <select style={{width:'auto', minWidth:'180px'}} value={statusFilter} onChange={e=>setStatusFilter(e.target.value)}>
+                      <select value={statusFilter} onChange={e=>setStatusFilter(e.target.value)}>
                         <option>Semua status</option>
                         <option>Sudah absen</option>
                         <option>Telat</option>
@@ -238,7 +259,7 @@ function App() {
                         <option>Belum absen</option>
                       </select>
                     </div>
-                    <div className="right"><button className="btn primary"><Plus size={14}/> Tambah absen manual</button></div>
+                    <div className="right"><button className="btn primary" onClick={()=>setShowManualModal(true)}><Plus size={14}/> Tambah absen manual</button></div>
                   </div>
                   <div className="data-table-wrap">
                     <table className="data-table">
@@ -443,6 +464,47 @@ function App() {
           )}
         </main>
       </div>
+
+      {/* Manual Attendance Modal */}
+      {showManualModal && (
+        <div className="modal-backdrop">
+          <div className="modal" style={{maxWidth:'500px'}}>
+            <div className="modal-head">
+              <h3>Tambah Absen Manual</h3>
+              <button className="btn ghost small" onClick={()=>setShowManualModal(false)}><X size={18}/></button>
+            </div>
+            <div className="modal-body">
+              <div className="form-stack">
+                <div className="field">
+                  <label>Pilih Karyawan</label>
+                  <select value={manualForm.staffId} onChange={e=>setManualForm({...manualForm, staffId:e.target.value})}>
+                    <option value="">-- Pilih --</option>
+                    {STAFF.map(s => <option key={s.id} value={s.id}>{s.name} ({s.username})</option>)}
+                  </select>
+                </div>
+                <div className="field">
+                  <label>Tanggal</label>
+                  <input type="date" value={manualForm.date} onChange={e=>setManualForm({...manualForm, date:e.target.value})}/>
+                </div>
+                <div className="grid two">
+                  <div className="field">
+                    <label>Jam Masuk</label>
+                    <input type="time" value={manualForm.checkIn} onChange={e=>setManualForm({...manualForm, checkIn:e.target.value})}/>
+                  </div>
+                  <div className="field">
+                    <label>Jam Pulang</label>
+                    <input type="time" value={manualForm.checkOut} onChange={e=>setManualForm({...manualForm, checkOut:e.target.value})}/>
+                  </div>
+                </div>
+                <div className="btn-row" style={{marginTop:'20px'}}>
+                  <button className="btn primary full" onClick={handleManualSubmit}>Simpan Absen</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {toast.show && <div className="toast show">{toast.message}</div>}
     </div>
   );
