@@ -3,7 +3,7 @@ import {
   Home, Camera, ClipboardList, History, Users, 
   Activity, Settings, LogOut, CheckCircle, Clock, 
   MapPin, AlertCircle, Search, Filter, MoreHorizontal,
-  ChevronDown, Plus, Trash2, Send, DollarSign, CheckSquare, Upload, Image, Navigation, X, User, UserPlus
+  ChevronDown, Plus, Trash2, Send, DollarSign, CheckSquare, Upload, Image, Navigation, X, User, UserPlus, Info
 } from 'lucide-react';
 import { STAFF as INITIAL_STAFF, ADMIN, DIVISIONS, LOCATIONS } from './data';
 import { 
@@ -34,6 +34,7 @@ function App() {
   const [showManualModal, setShowManualModal] = useState(false);
   const [showAddStaffModal, setShowAddStaffModal] = useState(false);
   const [selectedStaff, setSelectedStaff] = useState(null); 
+  const [selectedRequest, setSelectedRequest] = useState(null);
 
   const [manualForm, setManualForm] = useState({ staffId: '', checkIn: '08:00', checkOut: '', date: todayKey() });
   const [manualPhoto, setManualPhoto] = useState('');
@@ -214,13 +215,9 @@ function App() {
     };
   };
 
-  // Pre-calculate filtered list for accuracy
   const filteredStaff = staffList.filter(s => {
-    // 1. Filter by Search Name
     const matchesSearch = s.name.toLowerCase().includes(search.toLowerCase());
     if (!matchesSearch) return false;
-
-    // 2. Filter by Status
     if (statusFilter === 'Semua status') return true;
     const r = records.find(rec => rec.staff_id === s.id && rec.date === todayKey());
     const c = calcRecord(r);
@@ -461,7 +458,24 @@ function App() {
                   {tab === 'request' && (
                     <div className="grid two">
                       <div className="card"><h3>Kirim Pengajuan</h3><div className="form-stack"><div className="field"><label>Tipe</label><select value={requestForm.type} onChange={e=>setRequestForm({...requestForm, type:e.target.value})}><option>Cuti</option><option>Izin</option><option>Sakit</option></select></div><div className="field"><label>Tanggal</label><input type="date" value={requestForm.date} onChange={e=>setRequestForm({...requestForm, date:e.target.value})}/></div><div className="field"><label>Alasan</label><textarea value={requestForm.reason} onChange={e=>setRequestForm({...requestForm, reason:e.target.value})}/></div><button className="btn primary full" onClick={async()=>{await supabase.from('requests').insert([{...requestForm, staff_id:currentUser.id, staff_name:currentUser.name, status:'Menunggu'}]); showToast("Terkirim!"); fetchData();}}>Kirim</button></div></div>
-                      <div className="card"><h3>Riwayat Pengajuan</h3>{requests.filter(r=>r.staff_id===currentUser.id).map(r=>(<div key={r.id} style={{marginBottom:'10px'}}><b>{r.type}</b> ({r.status})</div>))}</div>
+                      <div className="card">
+                        <h3>Riwayat Pengajuan</h3>
+                        <div className="request-list">
+                          {requests.filter(r => r.staff_id === currentUser.id).map(r => (
+                            <div key={r.id} className="request-card">
+                              <div className="request-info">
+                                <b>{r.type}</b>
+                                <small>{fmtDate(r.date)}</small>
+                              </div>
+                              <div className="request-actions">
+                                <span className={`status-pill ${r.status==='Disetujui'?'hadir':r.status==='Ditolak'?'merah':'menunggu'}`}>{r.status}</span>
+                                <button className="btn ghost small" onClick={() => setSelectedRequest(r)}><Info size={14}/></button>
+                              </div>
+                            </div>
+                          ))}
+                          {requests.filter(r => r.staff_id === currentUser.id).length === 0 && <div className="muted">Belum ada pengajuan.</div>}
+                        </div>
+                      </div>
                     </div>
                   )}
                   {tab === 'history' && (
@@ -510,6 +524,22 @@ function App() {
               {(() => { const s = getStaffStats(selectedStaff.id); return (<><div className="card"><b>{s.present}</b><small> Hadir</small></div><div className="card"><b>{s.overtime}</b><small> Lembur</small></div></>); })()}
             </div>
             <button className="btn ghost full" onClick={()=>setSelectedStaff(null)}>Tutup</button>
+          </div>
+        </div></div>
+      )}
+      {selectedRequest && (
+        <div className="modal-backdrop"><div className="modal animate-in" style={{maxWidth:'500px'}}>
+          <div className="modal-head"><h3>Detail Pengajuan</h3><button className="btn ghost small" onClick={()=>setSelectedRequest(null)}><X size={18}/></button></div>
+          <div className="modal-body">
+            <div style={{marginBottom:'20px'}}>
+              <span className={`status-pill ${selectedRequest.status==='Disetujui'?'hadir':selectedRequest.status==='Ditolak'?'merah':'menunggu'}`}>{selectedRequest.status}</span>
+            </div>
+            <div className="form-stack">
+              <div className="field"><label>Jenis Pengajuan</label><div className="card" style={{background:'#f8faff'}}><b>{selectedRequest.type}</b></div></div>
+              <div className="field"><label>Tanggal Pelaksanaan</label><div className="card" style={{background:'#f8faff'}}><b>{fmtDate(selectedRequest.date)}</b></div></div>
+              <div className="field"><label>Alasan / Keterangan</label><div className="card" style={{background:'#f8faff', minHeight:'100px'}}>{selectedRequest.reason || "-"}</div></div>
+            </div>
+            <button className="btn primary full" style={{marginTop:'20px'}} onClick={()=>setSelectedRequest(null)}>Tutup Detail</button>
           </div>
         </div></div>
       )}

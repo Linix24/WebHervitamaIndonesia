@@ -1215,3 +1215,53 @@ textarea {
     flex: 1 1 100%;
   }
 }
+
+/* Request History Cards */
+.request-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 15px;
+}
+
+.request-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px;
+  background: rgba(255, 255, 255, 0.5);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  border-radius: 16px;
+  transition: all 0.2s ease;
+}
+
+.request-card:hover {
+  background: rgba(255, 255, 255, 0.8);
+  transform: translateY(-2px);
+}
+
+.request-info {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.request-info b {
+  font-size: 16px;
+  color: var(--brand);
+}
+
+.request-info small {
+  color: var(--muted);
+}
+
+.request-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.status-pill.merah {
+  background: rgba(220, 38, 38, 0.1);
+  color: #dc2626;
+}
