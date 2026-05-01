@@ -3,7 +3,7 @@ import {
   Home, Camera, ClipboardList, History, Users, 
   Activity, Settings, LogOut, CheckCircle, Clock, 
   MapPin, AlertCircle, Search, Filter, MoreHorizontal,
-  ChevronDown, Plus, Trash2, Send, DollarSign, CheckSquare, Upload, Image
+  ChevronDown, Plus, Trash2, Send, DollarSign, CheckSquare, Upload, Image, Navigation
 } from 'lucide-react';
 import { STAFF, ADMIN, DIVISIONS, LOCATIONS } from './data';
 import { 
@@ -27,6 +27,7 @@ function App() {
   const [clock, setClock] = useState('');
   const [loading, setLoading] = useState(false);
   const [search, setSearch] = useState('');
+  const [detecting, setDetecting] = useState(false);
   
   const camInputRef = useRef(null);
   const galleryInputRef = useRef(null);
@@ -86,6 +87,35 @@ function App() {
       };
       reader.readAsDataURL(file);
     }
+  };
+
+  const detectLocation = () => {
+    if (!navigator.geolocation) {
+      showToast("Browser tidak mendukung GPS.");
+      return;
+    }
+    setDetecting(true);
+    showToast("Sedang mendeteksi posisi...");
+    navigator.geolocation.getCurrentPosition(async (pos) => {
+      const { latitude, longitude } = pos.coords;
+      try {
+        // Reverse Geocoding using Nominatim (OpenStreetMap)
+        const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}&zoom=18&addressdetails=1`);
+        const data = await res.json();
+        const address = data.display_name || `${latitude}, ${longitude}`;
+        setLocation({ lat: latitude.toFixed(6), lng: longitude.toFixed(6), address });
+        showToast("Lokasi berhasil dideteksi!");
+      } catch (e) {
+        setLocation({ lat: latitude.toFixed(6), lng: longitude.toFixed(6), address: `Posisi: ${latitude}, ${longitude}` });
+        showToast("Lokasi didapat (tanpa alamat).");
+      } finally {
+        setDetecting(false);
+      }
+    }, (err) => {
+      console.error(err);
+      showToast("Gagal akses GPS. Pastikan izin lokasi aktif.");
+      setDetecting(false);
+    }, { enableHighAccuracy: true });
   };
 
   const calcRecord = (record) => {
@@ -344,7 +374,15 @@ function App() {
                         <button className="btn ghost" style={{flex:1}} onClick={()=>galleryInputRef.current.click()}><Image size={16}/> Galeri</button>
                       </div>
                     </div>
-                    <div className="card"><h3>GPS Lokasi</h3><div className="location-preview">{location?<b>{location.address}</b>:'Belum terdeteksi'}</div><button className="btn soft full" style={{marginTop:'10px'}} onClick={()=>setLocation(makeDemoLocation(currentUser.no))}>Simulasikan Lokasi</button></div>
+                    <div className="card">
+                      <h3>GPS Lokasi</h3>
+                      <div className="location-preview" style={{minHeight:'60px', display:'flex', alignItems:'center', justifyContent:'center', textAlign:'center'}}>
+                        {detecting ? <span>Sedang mencari lokasi...</span> : (location ? <b>{location.address}</b> : 'Belum terdeteksi')}
+                      </div>
+                      <button className="btn soft full" style={{marginTop:'10px'}} onClick={detectLocation} disabled={detecting}>
+                        <Navigation size={16}/> {detecting ? 'Mendeteksi...' : 'Deteksi Lokasi Otomatis'}
+                      </button>
+                    </div>
                   </div>
                 </div>
               )}
