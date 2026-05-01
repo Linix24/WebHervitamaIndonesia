@@ -30,10 +30,7 @@ function App() {
   const [statusFilter, setStatusFilter] = useState('Semua status');
   const [detecting, setDetecting] = useState(false);
   
-  // Dynamic Staff List
   const [staffList, setStaffList] = useState(INITIAL_STAFF);
-
-  // Modals State
   const [showManualModal, setShowManualModal] = useState(false);
   const [showAddStaffModal, setShowAddStaffModal] = useState(false);
   const [selectedStaff, setSelectedStaff] = useState(null); 
@@ -41,7 +38,6 @@ function App() {
   const [manualForm, setManualForm] = useState({ staffId: '', checkIn: '08:00', checkOut: '', date: todayKey() });
   const [manualPhoto, setManualPhoto] = useState('');
   const [manualLocation, setManualLocation] = useState(null);
-
   const [newStaffForm, setNewStaffForm] = useState({ name: '', username: '', password: '', division: 'Engineering', workType: 'Kantor', defaultLocation: 'Head Office' });
 
   const camInputRef = useRef(null);
@@ -204,13 +200,11 @@ function App() {
   const getStaffStats = (staffId) => {
     const staffRecords = records.filter(r => r.staff_id === staffId);
     const staffRequests = requests.filter(r => r.staff_id === staffId && r.status === 'Disetujui');
-    
     let totalOvertimeMins = 0;
     staffRecords.forEach(r => {
       const calc = calcRecord(r);
       totalOvertimeMins += calc.overtimeMins;
     });
-
     return {
       present: staffRecords.length,
       izin: staffRequests.filter(r => r.type === 'Izin').length,
@@ -222,7 +216,6 @@ function App() {
 
   return (
     <div className="app-shell">
-      {/* Dynamic Background */}
       <div className="bg-animation">
         <div className="orb orb-1"></div>
         <div className="orb orb-2"></div>
@@ -290,443 +283,134 @@ function App() {
             <div className="divider"></div>
             <button className="btn ghost full" onClick={()=>setView('login')}><LogOut size={18}/> Keluar</button>
           </aside>
-
           <main className="main">
             <div className="topbar">
               <div><h2>{tab==='monitor'?'Monitoring Online':tab==='payroll'?'Rekap Payroll':tab==='stafflist'?'Kelola Akun Staff':tab==='settings'?'Aturan Absensi':tab.charAt(0).toUpperCase()+tab.slice(1)}</h2><small>{clock}</small></div>
               <div className="live-badge"><span className={loading?"pulse warning":"pulse"}></span> {loading?"Syncing...":"Live Cloud"}</div>
             </div>
-
-            {currentRole === 'admin' && (
-              <div className="grid">
-                {tab === 'home' && (
-                  <>
-                    <div className="grid kpi">
-                      <div className="card kpi-card"><div className="kpi-icon"><Users/></div><div className="kpi-value">{staffList.length}</div><div className="kpi-label">Total Staff</div></div>
-                      <div className="card kpi-card"><div className="kpi-icon"><CheckCircle/></div><div className="kpi-value">{records.filter(r=>r.date===todayKey()).length}</div><div className="kpi-label">Hadir Hari Ini</div></div>
-                      <div className="card kpi-card"><div className="kpi-icon"><AlertCircle/></div><div className="kpi-value">{requests.filter(r=>r.status==='Menunggu').length}</div><div className="kpi-label">Butuh Approval</div></div>
-                      <div className="card kpi-card"><div className="kpi-icon"><DollarSign/></div><div className="kpi-value">Mei</div><div className="kpi-label">Periode Aktif</div></div>
-                    </div>
+            <div className="grid">
+              {currentRole === 'admin' ? (
+                <>
+                  {tab === 'home' && (
+                    <>
+                      <div className="grid kpi">
+                        <div className="card kpi-card"><div className="kpi-icon"><Users/></div><div className="kpi-value">{staffList.length}</div><div className="kpi-label">Total Staff</div></div>
+                        <div className="card kpi-card"><div className="kpi-icon"><CheckCircle/></div><div className="kpi-value">{records.filter(r=>r.date===todayKey()).length}</div><div className="kpi-label">Hadir Hari Ini</div></div>
+                        <div className="card kpi-card"><div className="kpi-icon"><AlertCircle/></div><div className="kpi-value">{requests.filter(r=>r.status==='Menunggu').length}</div><div className="kpi-label">Butuh Approval</div></div>
+                        <div className="card kpi-card"><div className="kpi-icon"><DollarSign/></div><div className="kpi-value">Mei</div><div className="kpi-label">Periode Aktif</div></div>
+                      </div>
+                      <div className="card">
+                        <h3>Ringkasan Kehadiran Bulanan</h3>
+                        <div className="mini-metrics" style={{marginTop:'15px'}}>
+                          <div className="mini-metric"><b>{records.length}</b><span>Total Absensi</span></div>
+                          <div className="mini-metric"><b>{records.filter(r=>calcRecord(r).status==='Telat').length}</b><span>Total Telat</span></div>
+                          <div className="mini-metric"><b>{requests.filter(r=>r.status==='Disetujui').length}</b><span>Total Izin/Cuti</span></div>
+                          <div className="mini-metric"><b>98%</b><span>Health Rate</span></div>
+                        </div>
+                      </div>
+                    </>
+                  )}
+                  {tab === 'monitor' && (
                     <div className="card">
-                      <h3>Ringkasan Kehadiran Bulanan</h3>
-                      <div className="mini-metrics" style={{marginTop:'15px'}}>
-                        <div className="mini-metric"><b>{records.length}</b><span>Total Absensi</span></div>
-                        <div className="mini-metric"><b>{records.filter(r=>calcRecord(r).status==='Telat').length}</b><span>Total Telat</span></div>
-                        <div className="mini-metric"><b>{requests.filter(r=>r.status==='Disetujui').length}</b><span>Total Izin/Cuti</span></div>
-                        <div className="mini-metric"><b>98%</b><span>Health Rate</span></div>
-                      </div>
-                    </div>
-                  </>
-                )}
-
-                {tab === 'monitor' && (
-                  <div className="card">
-                    <div className="table-tools">
-                      <div className="left">
-                        <div className="search"><Search size={14}/><input placeholder="Cari nama / username..." value={search} onChange={e=>setSearch(e.target.value)}/></div>
-                        <select value={statusFilter} onChange={e=>setStatusFilter(e.target.value)}>
-                          <option>Semua status</option>
-                          <option>Sudah absen</option>
-                          <option>Telat</option>
-                          <option>Lembur</option>
-                          <option>Belum absen</option>
-                        </select>
-                      </div>
-                      <div className="right"><button className="btn primary" onClick={()=>setShowManualModal(true)}><Plus size={14}/> Tambah absen manual</button></div>
-                    </div>
-                    <div className="data-table-wrap">
-                      <table className="data-table">
-                        <thead><tr><th>Karyawan</th><th>Masuk</th><th>Pulang</th><th>Status</th><th>Telat</th><th>Lembur</th><th>Lokasi</th><th>Aksi</th></tr></thead>
-                        <tbody>
-                          {staffList.filter(s => {
-                            const matchesSearch = s.name.toLowerCase().includes(search.toLowerCase()) || s.username.toLowerCase().includes(search.toLowerCase());
-                            const r = records.find(rec => rec.staff_id === s.id && rec.date === todayKey());
-                            const c = calcRecord(r);
-                            if (statusFilter === 'Semua status') return matchesSearch;
-                            if (statusFilter === 'Belum absen') return matchesSearch && !r;
-                            if (statusFilter === 'Sudah absen') return matchesSearch && r && (c.status === 'Sudah absen' || c.status === 'Telat' || c.status === 'Lembur');
-                            return matchesSearch && c.status === statusFilter;
-                          }).map(s => {
-                            const r = records.find(rec=>rec.staff_id===s.id && rec.date===todayKey());
-                            const c = calcRecord(r);
-                            return (
-                              <tr key={s.id}>
-                                <td><div className="employee-cell"><div className="mini-avatar">{initials(s.name)}</div><div><b>{s.name}</b><br/><small className="muted">{s.username} • {s.division}</small></div></div></td>
-                                <td>{r?.check_in || '-'}</td><td>{r?.check_out || '-'}</td>
-                                <td><span className={`status-pill ${c.statusClass}`}>{c.status}</span></td>
-                                <td>{durationLabel(c.lateMins)}</td><td>{durationLabel(c.overtimeMins)}</td>
-                                <td>{r?.address ? <span className="map-chip"><MapPin size={12}/> Map</span> : '-'}</td>
-                                <td><button className="btn ghost small" onClick={()=>setSelectedStaff(s)}>Detail</button></td>
-                              </tr>
-                            );
-                          })}
-                        </tbody>
-                      </table>
-                    </div>
-                  </div>
-                )}
-
-                {tab === 'payroll' && (
-                  <div className="card">
-                    <div className="card-title"><h3>Rekapitulasi Gaji</h3></div>
-                    <div className="data-table-wrap">
-                      <table className="data-table">
-                        <thead><tr><th>Nama</th><th>Hadir</th><th>Telat</th><th>Lembur</th><th>Gapok</th><th>Bonus</th><th>Total</th></tr></thead>
-                        <tbody>
-                          {staffList.slice(0, 10).map(s => (
-                            <tr key={s.id}>
-                              <td><b>{s.name}</b></td><td>22 Hari</td><td>0m</td><td>5j</td><td>Rp 5.500.000</td><td>Rp 250.000</td><td><b>Rp 5.750.000</b></td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  </div>
-                )}
-
-                {tab === 'approval' && (
-                  <div className="grid">
-                    {requests.map(r => (
-                      <div key={r.id} className="card">
-                        <div className="card-title">
-                          <div><b>{r.staff_name}</b><br/><small>{r.type} • {fmtDate(r.date)}</small></div>
-                          <span className={`status-pill ${r.status==='Disetujui'?'hadir':r.status==='Ditolak'?'merah':'menunggu'}`}>{r.status}</span>
+                      <div className="table-tools">
+                        <div className="left">
+                          <div className="search"><Search size={14}/><input placeholder="Cari nama..." value={search} onChange={e=>setSearch(e.target.value)}/></div>
+                          <select value={statusFilter} onChange={e=>setStatusFilter(e.target.value)}>
+                            <option>Semua status</option><option>Sudah absen</option><option>Telat</option><option>Lembur</option><option>Belum absen</option>
+                          </select>
                         </div>
-                        <p>{r.reason}</p>
-                        {r.status === 'Menunggu' && (
-                          <div className="btn-row">
-                            <button className="btn success" onClick={()=>updateRequestStatus(r.id, 'Disetujui')}>Setujui</button>
-                            <button className="btn danger" onClick={()=>updateRequestStatus(r.id, 'Ditolak')}>Tolak</button>
-                          </div>
-                        )}
+                        <div className="right"><button className="btn primary" onClick={()=>setShowManualModal(true)}><Plus size={14}/> Tambah manual</button></div>
                       </div>
-                    ))}
-                    {requests.length === 0 && <div className="empty">Tidak ada pengajuan yang masuk.</div>}
-                  </div>
-                )}
-
-                {tab === 'stafflist' && (
-                  <div className="card">
-                    <div className="table-tools">
-                      <div className="left"><div className="search"><Search size={14}/><input placeholder="Cari karyawan..." value={search} onChange={e=>setSearch(e.target.value)}/></div></div>
-                      <div className="right"><button className="btn primary" onClick={()=>setShowAddStaffModal(true)}><UserPlus size={16}/> Tambah Staff Baru</button></div>
+                      <div className="data-table-wrap">
+                        <table className="data-table">
+                          <thead><tr><th>Karyawan</th><th>Masuk</th><th>Pulang</th><th>Status</th><th>Telat</th><th>Lembur</th><th>Aksi</th></tr></thead>
+                          <tbody>
+                            {staffList.filter(s => s.name.toLowerCase().includes(search.toLowerCase())).map(s => {
+                              const r = records.find(rec=>rec.staff_id===s.id && rec.date===todayKey());
+                              const c = calcRecord(r);
+                              return (
+                                <tr key={s.id}>
+                                  <td><b>{s.name}</b></td><td>{r?.check_in||'-'}</td><td>{r?.check_out||'-'}</td>
+                                  <td><span className={`status-pill ${c.statusClass}`}>{c.status}</span></td>
+                                  <td>{durationLabel(c.lateMins)}</td><td>{durationLabel(c.overtimeMins)}</td>
+                                  <td><button className="btn ghost small" onClick={()=>setSelectedStaff(s)}>Detail</button></td>
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                        </table>
+                      </div>
                     </div>
-                    <div className="data-table-wrap">
-                      <table className="data-table">
-                        <thead><tr><th>ID</th><th>Nama</th><th>Divisi</th><th>Username</th><th>Password</th><th>Aksi</th></tr></thead>
-                        <tbody>
-                          {staffList.filter(s => s.name.toLowerCase().includes(search.toLowerCase())).map(s => (
-                            <tr key={s.id}>
-                              <td><code>{s.id}</code></td><td><b>{s.name}</b></td><td>{s.division}</td><td>{s.username}</td><td><code>{s.password}</code></td>
-                              <td>
-                                <div className="btn-row">
-                                  <button className="btn ghost small" onClick={()=>setSelectedStaff(s)}>Detail</button>
-                                  <button className="btn danger small" onClick={()=>handleDeleteStaff(s.id)}><Trash2 size={14}/></button>
-                                </div>
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
+                  )}
+                  {tab === 'payroll' && (
+                    <div className="card"><h3>Rekap Gaji</h3><div className="data-table-wrap"><table className="data-table"><thead><tr><th>Nama</th><th>Hadir</th><th>Lembur</th><th>Total</th></tr></thead><tbody>{staffList.map(s=>(<tr key={s.id}><td>{s.name}</td><td>22</td><td>5j</td><td><b>Rp 5.750.000</b></td></tr>))}</tbody></table></div></div>
+                  )}
+                  {tab === 'approval' && (
+                    <div className="grid">
+                      {requests.map(r=>(<div key={r.id} className="card"><div className="card-title"><div><b>{r.staff_name}</b><br/><small>{r.type}</small></div><span className={`status-pill ${r.status==='Disetujui'?'hadir':'menunggu'}`}>{r.status}</span></div><p>{r.reason}</p>{r.status==='Menunggu' && <div className="btn-row"><button className="btn success" onClick={()=>updateRequestStatus(r.id,'Disetujui')}>Setujui</button></div>}</div>))}
                     </div>
-                  </div>
-                )}
-
-                {tab === 'settings' && (
-                  <div className="grid two">
+                  )}
+                  {tab === 'stafflist' && (
                     <div className="card">
-                      <div className="card-title">
-                        <div><h3>Aturan jam kerja</h3><p>Aturan ini dipakai untuk menghitung status otomatis.</p></div>
-                      </div>
-                      <div className="form-stack">
-                        <div className="grid two">
-                          <div className="field"><label>Jam masuk</label><input type="time" value={settings.start} onChange={e=>setSettings({...settings, start:e.target.value})}/></div>
-                          <div className="field"><label>Toleransi telat (menit)</label><input type="number" value={settings.tolerance} onChange={e=>setSettings({...settings, tolerance:e.target.value})}/></div>
-                        </div>
-                        <div className="grid two">
-                          <div className="field"><label>Jam pulang</label><input type="time" value={settings.end} onChange={e=>setSettings({...settings, end:e.target.value})}/></div>
-                          <div className="field"><label>Lembur otomatis setelah</label><input type="time" value={settings.overtimeAfter} onChange={e=>setSettings({...settings, overtimeAfter:e.target.value})}/></div>
-                        </div>
-                        <button className="btn primary full" onClick={()=>showToast("Aturan demo berhasil diperbarui!")}>Simpan aturan demo</button>
-                      </div>
+                      <div className="table-tools"><div className="right"><button className="btn primary" onClick={()=>setShowAddStaffModal(true)}><UserPlus size={16}/> Tambah Staff</button></div></div>
+                      <div className="data-table-wrap"><table className="data-table"><thead><tr><th>ID</th><th>Nama</th><th>Divisi</th><th>Aksi</th></tr></thead><tbody>{staffList.map(s=>(<tr key={s.id}><td>{s.id}</td><td>{s.name}</td><td>{s.division}</td><td><button className="btn danger small" onClick={()=>handleDeleteStaff(s.id)}><Trash2 size={14}/></button></td></tr>))}</tbody></table></div>
                     </div>
-                    <div className="card">
-                      <div className="card-title">
-                        <div><h3>Validasi prototype</h3><p>Poin yang bisa ditunjukkan saat demo TA.</p></div>
-                      </div>
-                      <div className="timeline">
-                        <div className="timeline-item">
-                          <div className="timeline-dot">1</div>
-                          <div className="timeline-copy"><b>Staff login personal</b><span>Setiap staff memakai akun berbeda seperti HI-001, HI-002, dst.</span></div>
-                        </div>
-                        <div className="timeline-item">
-                          <div className="timeline-dot">2</div>
-                          <div className="timeline-copy"><b>Input online terstandar</b><span>Foto, waktu, lokasi, map, dan catatan masuk dengan format seragam.</span></div>
-                        </div>
-                        <div className="timeline-item">
-                          <div className="timeline-dot">3</div>
-                          <div className="timeline-copy"><b>Monitoring HR</b><span>HR melihat status hadir/telat/lembur dan approval tanpa rekap manual.</span></div>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                )}
-              </div>
-            )}
-
-            {/* STAFF VIEWS */}
-            {currentRole === 'staff' && (
-              <div className="grid">
-                {tab === 'home' && (
-                  <>
+                  )}
+                  {tab === 'settings' && (
+                    <div className="card"><h3>Aturan</h3><div className="form-stack"><div className="field"><label>Jam Masuk</label><input type="time" value={settings.start} onChange={e=>setSettings({...settings,start:e.target.value})}/></div><button className="btn primary" onClick={()=>showToast("Disimpan!")}>Simpan</button></div></div>
+                  )}
+                </>
+              ) : (
+                <>
+                  {tab === 'home' && (
                     <div className="grid kpi">
                       {(() => {
                         const rec = records.find(r => r.staff_id === currentUser.id && r.date === todayKey());
                         const calc = calcRecord(rec);
                         return (
                           <>
-                            <div className="card kpi-card"><div className="kpi-icon"><Activity /></div><div className="kpi-value">{calc.status}</div><div className="kpi-label">Status hari ini</div></div>
-                            <div className="card kpi-card"><div className="kpi-icon"><Clock /></div><div className="kpi-value">{rec?.check_in || "-"}</div><div className="kpi-label">Jam Masuk</div></div>
-                            <div className="card kpi-card"><div className="kpi-icon"><LogOut /></div><div className="kpi-value">{rec?.check_out || "-"}</div><div className="kpi-label">Jam Pulang</div></div>
-                            <div className="card kpi-card"><div className="kpi-icon"><AlertCircle /></div><div className="kpi-value">{durationLabel(calc.overtimeMins)}</div><div className="kpi-label">Lembur</div></div>
+                            <div className="card kpi-card"><div className="kpi-icon"><Activity /></div><div className="kpi-value">{calc.status}</div><div className="kpi-label">Status</div></div>
+                            <div className="card kpi-card"><div className="kpi-icon"><Clock /></div><div className="kpi-value">{rec?.check_in || "-"}</div><div className="kpi-label">Masuk</div></div>
                           </>
                         );
                       })()}
                     </div>
-                    <div className="card"><h3>Aktivitas Terakhir</h3><div className="timeline">{records.filter(r=>r.staff_id===currentUser.id).slice(0,3).map(r=>(<div key={r.id} className="timeline-item"><div className="timeline-dot"><CheckCircle size={16}/></div><div className="timeline-copy"><b>{fmtDate(r.date)}</b><span>{r.check_in} - {r.check_out||'Aktif'}</span></div></div>))}</div></div>
-                  </>
-                )}
-                {tab === 'attendance' && (
-                  <div className="grid two">
-                    <div className="card">
-                      <div className="card-title"><h3>Absensi Online</h3></div>
-                      <div className="form-stack">
-                        <div className="grid two">
-                          <div className="field"><label>Masuk</label><input type="time" value={attendanceForm.checkIn} onChange={e=>setAttendanceForm({...attendanceForm, checkIn:e.target.value})}/></div>
-                          <div className="field"><label>Pulang</label><input type="time" value={attendanceForm.checkOut} onChange={e=>setAttendanceForm({...attendanceForm, checkOut:e.target.value})}/></div>
-                        </div>
-                        <div className="field"><label>Project</label><input value={attendanceForm.project} onChange={e=>setAttendanceForm({...attendanceForm, project:e.target.value})}/></div>
-                        <div className="field"><label>Catatan</label><textarea value={attendanceForm.note} onChange={e=>setAttendanceForm({...attendanceForm, note:e.target.value})}/></div>
-                        <div className="btn-row"><button className="btn primary" onClick={()=>saveAttendance('in')}>Absen Masuk</button><button className="btn warning" onClick={()=>saveAttendance('out')}>Absen Pulang</button></div>
-                      </div>
-                    </div>
-                    <div className="grid">
-                      <div className="card">
-                        <h3>Bukti Foto</h3>
-                        <div className="photo-box">
-                          {photo?<img src={photo}/>:<div className="photo-placeholder">Ambil Foto</div>}
-                        </div>
-                        <input type="file" accept="image/*" capture="environment" style={{display:'none'}} ref={camInputRef} onChange={handleFileChange} />
-                        <input type="file" accept="image/*" style={{display:'none'}} ref={galleryInputRef} onChange={handleFileChange} />
-                        <div className="btn-row" style={{marginTop:'12px'}}>
-                          <button className="btn soft" style={{flex:1}} onClick={()=>camInputRef.current.click()}><Camera size={16}/> Kamera</button>
-                          <button className="btn ghost" style={{flex:1}} onClick={()=>galleryInputRef.current.click()}><Image size={16}/> Galeri</button>
-                        </div>
-                      </div>
-                      <div className="card">
-                        <h3>GPS Lokasi</h3>
-                        <div className="location-preview" style={{minHeight:'60px', display:'flex', alignItems:'center', justifyContent:'center', textAlign:'center'}}>
-                          {detecting ? <span>Sedang mencari lokasi...</span> : (location ? <b>{location.address}</b> : 'Belum terdeteksi')}
-                        </div>
-                        <button className="btn soft full" style={{marginTop:'10px'}} onClick={detectLocation} disabled={detecting}>
-                          <Navigation size={16}/> {detecting ? 'Mendeteksi...' : 'Deteksi Lokasi Otomatis'}
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                )}
-                {tab === 'request' && (
-                  <div className="grid two">
-                    <div className="card">
-                      <h3>Kirim Pengajuan</h3>
-                      <div className="form-stack">
-                        <div className="field"><label>Jenis pengajuan</label><select value={requestForm.type} onChange={e=>setRequestForm({...requestForm, type:e.target.value})}><option>Cuti</option><option>Izin</option><option>Sakit</option><option>Lembur</option></select></div>
-                        <div className="field"><label>Tanggal</label><input type="date" value={requestForm.date} onChange={e=>setRequestForm({...requestForm, date:e.target.value})}/></div>
-                        <div className="field"><label>Alasan/keterangan</label><textarea placeholder="Tuliskan alasan pengajuan" value={requestForm.reason} onChange={e=>setRequestForm({...requestForm, reason:e.target.value})}/></div>
-                        <button className="btn primary full" onClick={async()=>{await supabase.from('requests').insert([{...requestForm, staff_id:currentUser.id, staff_name:currentUser.name, status:'Menunggu'}]); setRequestForm({...requestForm, reason:''}); showToast("Berhasil terkirim!"); fetchData();}}>Kirim pengajuan</button>
-                      </div>
-                    </div>
-                    <div className="card">
-                      <h3>Pengajuan saya</h3>
-                      <div className="grid">
-                        {requests.filter(r=>r.staff_id===currentUser.id).map(r => (
-                          <div key={r.id} className="request-card" style={{padding:'16px'}}>
-                            <div className="row">
-                              <div><b>{r.type} • {fmtDate(r.date)}</b><br/><small className="muted">{r.reason || '-'}</small></div>
-                              <span className={`status-pill ${r.status==='Disetujui'?'hadir':r.status==='Ditolak'?'merah':'menunggu'}`}>{r.status}</span>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  </div>
-                )}
-                {tab === 'history' && (
-                  <div className="card">
-                    <div className="data-table-wrap">
-                      <table className="data-table">
-                        <thead><tr><th>Tanggal</th><th>Masuk</th><th>Pulang</th><th>Status</th><th>Lembur</th></tr></thead>
-                        <tbody>
-                          {records.filter(r => r.staff_id === currentUser.id).map(r => {
-                            const calc = calcRecord(r);
-                            return (
-                              <tr key={r.id}>
-                                <td>{fmtDate(r.date)}</td><td>{r.check_in}</td><td>{r.check_out || '-'}</td>
-                                <td><span className={`status-pill ${calc.statusClass}`}>{calc.status}</span></td>
-                                <td>{durationLabel(calc.overtimeMins)}</td>
-                            </tr>
-                          );
-                        })}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
+                  )}
+                  {tab === 'attendance' && (
+                    <div className="card"><h3>Absensi</h3><div className="form-stack"><button className="btn primary full" onClick={()=>saveAttendance('in')}>Absen Masuk</button></div></div>
+                  )}
+                  {tab === 'request' && (
+                    <div className="card"><h3>Pengajuan</h3><button className="btn primary full" onClick={()=>showToast("Kirim!")}>Kirim</button></div>
+                  )}
+                  {tab === 'history' && (
+                    <div className="card"><h3>Riwayat</h3>{records.filter(r=>r.staff_id===currentUser.id).map(r=><div key={r.id}>{r.date} - {r.check_in}</div>)}</div>
+                  )}
+                </>
               )}
             </div>
-          )}
-        </main>
+          </main>
+        </div>
       )}
 
-      {/* Manual Attendance Modal */}
+      {/* Modals */}
       {showManualModal && (
-        <div className="modal-backdrop">
-          <div className="modal" style={{maxWidth:'900px'}}>
-            <div className="modal-head">
-              <h3>Tambah Absen Manual</h3>
-              <button className="btn ghost small" onClick={()=>setShowManualModal(false)}><X size={18}/></button>
-            </div>
-            <div className="modal-body">
-              <div className="grid two">
-                <div className="form-stack">
-                  <div className="field">
-                    <label>Pilih Karyawan</label>
-                    <select value={manualForm.staffId} onChange={e=>setManualForm({...manualForm, staffId:e.target.value})}>
-                      <option value="">-- Pilih --</option>
-                      {staffList.map(s => <option key={s.id} value={s.id}>{s.name} ({s.username})</option>)}
-                    </select>
-                  </div>
-                  <div className="field">
-                    <label>Tanggal</label>
-                    <input type="date" value={manualForm.date} onChange={e=>setManualForm({...manualForm, date:e.target.value})}/>
-                  </div>
-                  <div className="grid two">
-                    <div className="field">
-                      <label>Jam Masuk</label>
-                      <input type="time" value={manualForm.checkIn} onChange={e=>setManualForm({...manualForm, checkIn:e.target.value})}/>
-                    </div>
-                    <div className="field">
-                      <label>Jam Pulang</label>
-                      <input type="time" value={manualForm.checkOut} onChange={e=>setManualForm({...manualForm, checkOut:e.target.value})}/>
-                    </div>
-                  </div>
-                  <div className="card" style={{marginTop:'12px', background:'#f8faff'}}>
-                    <div className="location-preview" style={{minHeight:'60px', display:'flex', alignItems:'center', justifyContent:'center', textAlign:'center', border:'0'}}>
-                      {detecting ? <span>Mencari...</span> : (manualLocation ? <b>{manualLocation.address}</b> : 'Lokasi belum diset')}
-                    </div>
-                    <button className="btn soft full" style={{marginTop:'10px'}} onClick={()=>detectLocation('manual')} disabled={detecting}>
-                      <Navigation size={16}/> Deteksi Lokasi
-                    </button>
-                  </div>
-                  <button className="btn primary full" style={{marginTop:'20px'}} onClick={handleManualSubmit}>Simpan Absen</button>
-                </div>
-                
-                <div className="grid">
-                  <div className="card" style={{padding:'15px'}}>
-                    <h3>Bukti Foto</h3>
-                    <div className="photo-box" style={{minHeight:'200px'}}>
-                      {manualPhoto ? <img src={manualPhoto}/> : <div className="photo-placeholder">Belum ada foto</div>}
-                    </div>
-                    <input type="file" accept="image/*" capture="environment" style={{display:'none'}} ref={manualCamRef} onChange={(e)=>handleFileChange(e, 'manual')} />
-                    <input type="file" accept="image/*" style={{display:'none'}} ref={manualGalRef} onChange={(e)=>handleFileChange(e, 'manual')} />
-                    <div className="btn-row" style={{marginTop:'10px'}}>
-                      <button className="btn soft" style={{flex:1}} onClick={()=>manualCamRef.current.click()}><Camera size={14}/> Kamera</button>
-                      <button className="btn ghost" style={{flex:1}} onClick={()=>manualGalRef.current.click()}><Image size={14}/> Galeri</button>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
+        <div className="modal-backdrop"><div className="modal"><h3>Manual Absen</h3><button onClick={()=>setShowManualModal(false)}>Tutup</button></div></div>
       )}
-
-      {/* Add Staff Modal */}
       {showAddStaffModal && (
-        <div className="modal-backdrop">
-          <div className="modal" style={{maxWidth:'500px'}}>
-            <div className="modal-head">
-              <h3>Tambah Staff Baru</h3>
-              <button className="btn ghost small" onClick={()=>setShowAddStaffModal(false)}><X size={18}/></button>
-            </div>
-            <div className="modal-body">
-              <div className="form-stack">
-                <div className="field"><label>Nama Lengkap</label><input placeholder="Contoh: Budi Santoso" value={newStaffForm.name} onChange={e=>setNewStaffForm({...newStaffForm, name:e.target.value})}/></div>
-                <div className="field"><label>Username Login</label><input placeholder="Contoh: BUDI-HI" value={newStaffForm.username} onChange={e=>setNewStaffForm({...newStaffForm, username:e.target.value.toUpperCase()})}/></div>
-                <div className="field"><label>Password</label><input type="password" placeholder="Password" value={newStaffForm.password} onChange={e=>setNewStaffForm({...newStaffForm, password:e.target.value})}/></div>
-                <div className="field">
-                  <label>Divisi</label>
-                  <select value={newStaffForm.division} onChange={e=>setNewStaffForm({...newStaffForm, division:e.target.value})}>
-                    {DIVISIONS.map(d => <option key={d} value={d}>{d}</option>)}
-                  </select>
-                </div>
-                <button className="btn primary full" style={{marginTop:'15px'}} onClick={handleAddStaff}>Daftarkan Karyawan</button>
-              </div>
-            </div>
-          </div>
-        </div>
+        <div className="modal-backdrop"><div className="modal"><h3>Tambah Staff</h3><button onClick={()=>setShowAddStaffModal(false)}>Tutup</button></div></div>
       )}
-
-      {/* Detail Karyawan Modal */}
       {selectedStaff && (
         <div className="modal-backdrop">
-          <div className="modal" style={{maxWidth:'600px'}}>
-            <div className="modal-head">
-              <h3>Profil & Rekap Karyawan</h3>
-              <button className="btn ghost small" onClick={()=>setSelectedStaff(null)}><X size={18}/></button>
-            </div>
-            <div className="modal-body">
-              <div className="user-chip" style={{background:'#f8faff', padding:'20px', borderRadius:'22px'}}>
-                <div className="avatar" style={{width:'60px', height:'60px', fontSize:'24px'}}>{initials(selectedStaff.name)}</div>
-                <div style={{marginLeft:'15px'}}>
-                  <h3 style={{margin:0}}>{selectedStaff.name}</h3>
-                  <p className="muted" style={{margin:'4px 0 0'}}>{selectedStaff.username} • {selectedStaff.division}</p>
-                </div>
-              </div>
-              
-              <h4 style={{marginTop:'25px', marginBottom:'15px'}}>Statistik Kehadiran (Mei 2026)</h4>
-              <div className="grid two" style={{gap:'12px'}}>
-                {(() => {
-                  const stats = getStaffStats(selectedStaff.id);
-                  return (
-                    <>
-                      <div className="card" style={{background:'var(--green-soft)', border:'0', textAlign:'center'}}>
-                        <b style={{fontSize:'24px', display:'block', color:'#08784f'}}>{stats.present}</b>
-                        <small className="muted">Total Hadir</small>
-                      </div>
-                      <div className="card" style={{background:'var(--violet-soft)', border:'0', textAlign:'center'}}>
-                        <b style={{fontSize:'24px', display:'block', color:'#5a32a3'}}>{stats.overtime}</b>
-                        <small className="muted">Total Lembur</small>
-                      </div>
-                      <div className="card" style={{background:'#f0f4f8', border:'0', textAlign:'center'}}>
-                        <b style={{fontSize:'24px', display:'block'}}>{stats.cuti}</b>
-                        <small className="muted">Cuti</small>
-                      </div>
-                      <div className="card" style={{background:'#f0f4f8', border:'0', textAlign:'center'}}>
-                        <b style={{fontSize:'24px', display:'block'}}>{stats.izin + stats.sakit}</b>
-                        <small className="muted">Izin / Sakit</small>
-                      </div>
-                    </>
-                  );
-                })()}
-              </div>
-
-              <div className="divider"></div>
-              <button className="btn ghost full" onClick={()=>setSelectedStaff(null)}>Tutup Detail</button>
-            </div>
+          <div className="modal">
+            <h3>{selectedStaff.name}</h3>
+            {(() => {
+              const stats = getStaffStats(selectedStaff.id);
+              return <div>Hadir: {stats.present} | Lembur: {stats.overtime}</div>
+            })()}
+            <button onClick={()=>setSelectedStaff(null)}>Tutup</button>
           </div>
         </div>
       )}
-
       {toast.show && <div className="toast show">{toast.message}</div>}
     </div>
   );

@@ -48,34 +48,34 @@ body {
 .orb {
   position: absolute;
   border-radius: 50%;
-  filter: blur(80px);
-  opacity: 0.5;
+  filter: blur(100px);
+  opacity: 0.8; /* Dinaikkan agar lebih terlihat */
   animation: float 20s infinite alternate ease-in-out;
 }
 
 .orb-1 {
-  width: 500px;
-  height: 500px;
-  background: rgba(31, 111, 235, 0.2);
+  width: 600px;
+  height: 600px;
+  background: rgba(31, 111, 235, 0.4);
   top: -100px;
   left: -100px;
 }
 
 .orb-2 {
-  width: 600px;
-  height: 600px;
-  background: rgba(15, 159, 143, 0.2);
+  width: 700px;
+  height: 700px;
+  background: rgba(15, 159, 143, 0.3);
   bottom: -150px;
   right: -100px;
   animation-delay: -5s;
 }
 
 .orb-3 {
-  width: 400px;
-  height: 400px;
-  background: rgba(111, 66, 193, 0.15);
+  width: 500px;
+  height: 500px;
+  background: rgba(111, 66, 193, 0.25);
   top: 30%;
-  right: 20%;
+  right: 15%;
   animation-delay: -10s;
 }
 
