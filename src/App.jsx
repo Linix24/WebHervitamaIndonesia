@@ -360,100 +360,100 @@ function App() {
                           <div className="right"><button className="btn primary" onClick={()=>setShowAddStaffModal(true)}><UserPlus size={16}/> Tambah Staff Baru</button></div>
                         </div>
                         <div className="data-table-wrap"><table className="data-table"><thead><tr><th>ID</th><th>Nama</th><th>Divisi</th><th>Username</th><th>Aksi</th></tr></thead><tbody>{staffList.filter(s=>s.name.toLowerCase().includes(search.toLowerCase())).map(s=>(<tr key={s.id}><td>{s.id}</td><td><b>{s.name}</b></td><td>{s.division}</td><td>{s.username}</td><td><div className="btn-row"><button className="btn ghost small" onClick={()=>setSelectedStaff(s)}>Detail</button><button className="btn danger small" onClick={()=>handleDeleteStaff(s.id)}><Trash2 size={14}/></button></div></td></tr>))}</tbody></table></div>
+                    </div>
+                  )}
+                  {tab === 'settings' && (
+                    <div className="grid two">
+                      <div className="card">
+                        <h3>Aturan Jam Kerja</h3>
+                        <div className="form-stack">
+                          <div className="grid two">
+                            <div className="field"><label>Jam masuk</label><input type="time" value={settings.start} onChange={e=>setSettings({...settings,start:e.target.value})}/></div>
+                            <div className="field"><label>Toleransi (menit)</label><input type="number" value={settings.tolerance} onChange={e=>setSettings({...settings,tolerance:e.target.value})}/></div>
+                          </div>
+                          <div className="grid two">
+                            <div className="field"><label>Jam pulang</label><input type="time" value={settings.end} onChange={e=>setSettings({...settings,end:e.target.value})}/></div>
+                            <div className="field"><label>Lembur otomatis</label><input type="time" value={settings.overtimeAfter} onChange={e=>setSettings({...settings,overtimeAfter:e.target.value})}/></div>
+                          </div>
+                          <button className="btn primary full" onClick={()=>showToast("Aturan disimpan!")}>Simpan Aturan</button>
+                        </div>
                       </div>
-                    )}
-                    {tab === 'settings' && (
-                      <div className="grid two">
+                      <div className="card">
+                        <h3>Validasi Prototype</h3>
+                        <div className="timeline">
+                          <div className="timeline-item"><div className="timeline-dot">1</div><div className="timeline-copy"><b>Staff login personal</b><span>HI-001, HI-002, dst.</span></div></div>
+                          <div className="timeline-item"><div className="timeline-dot">2</div><div className="timeline-copy"><b>Input online terstandar</b><span>Foto & GPS real-time.</span></div></div>
+                          <div className="timeline-item"><div className="timeline-dot">3</div><div className="timeline-copy"><b>Monitoring HR</b><span>Approval tanpa rekap manual.</span></div></div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </>
+              ) : (
+                <>
+                  {tab === 'home' && (
+                    <>
+                      <div className="grid kpi">
+                        {(() => {
+                          const rec = records.find(r => r.staff_id === currentUser.id && r.date === todayKey());
+                          const calc = calcRecord(rec);
+                          return (
+                            <>
+                              <div className="card kpi-card"><div className="kpi-icon"><Activity /></div><div className="kpi-value">{calc.status}</div><div className="kpi-label">Status hari ini</div></div>
+                              <div className="card kpi-card"><div className="kpi-icon"><Clock /></div><div className="kpi-value">{rec?.check_in || "-"}</div><div className="kpi-label">Jam Masuk</div></div>
+                              <div className="card kpi-card"><div className="kpi-icon"><LogOut /></div><div className="kpi-value">{rec?.check_out || "-"}</div><div className="kpi-label">Jam Pulang</div></div>
+                              <div className="card kpi-card"><div className="kpi-icon"><AlertCircle /></div><div className="kpi-value">{durationLabel(calc.overtimeMins)}</div><div className="kpi-label">Lembur</div></div>
+                            </>
+                          );
+                        })()}
+                      </div>
+                      <div className="card"><h3>Aktivitas Terakhir</h3><div className="timeline">{records.filter(r=>r.staff_id===currentUser.id).slice(0,3).map(r=>(<div key={r.id} className="timeline-item"><div className="timeline-dot"><CheckCircle size={16}/></div><div className="timeline-copy"><b>{fmtDate(r.date)}</b><span>{r.check_in} - {r.check_out||'Aktif'}</span></div></div>))}</div></div>
+                    </>
+                  )}
+                  {tab === 'attendance' && (
+                    <div className="grid two">
+                      <div className="card">
+                        <h3>Absensi Online</h3>
+                        <div className="form-stack">
+                          <div className="grid two">
+                            <div className="field"><label>Masuk</label><input type="time" value={attendanceForm.checkIn} onChange={e=>setAttendanceForm({...attendanceForm, checkIn:e.target.value})}/></div>
+                            <div className="field"><label>Pulang</label><input type="time" value={attendanceForm.checkOut} onChange={e=>setAttendanceForm({...attendanceForm, checkOut:e.target.value})}/></div>
+                          </div>
+                          <div className="field"><label>Project</label><input value={attendanceForm.project} onChange={e=>setAttendanceForm({...attendanceForm, project:e.target.value})}/></div>
+                          <div className="field"><label>Catatan</label><textarea value={attendanceForm.note} onChange={e=>setAttendanceForm({...attendanceForm, note:e.target.value})}/></div>
+                          <div className="btn-row"><button className="btn primary" onClick={()=>saveAttendance('in')}>Absen Masuk</button><button className="btn warning" onClick={()=>saveAttendance('out')}>Absen Pulang</button></div>
+                        </div>
+                      </div>
+                      <div className="grid">
                         <div className="card">
-                          <h3>Aturan Jam Kerja</h3>
-                          <div className="form-stack">
-                            <div className="grid two">
-                              <div className="field"><label>Jam masuk</label><input type="time" value={settings.start} onChange={e=>setSettings({...settings,start:e.target.value})}/></div>
-                              <div className="field"><label>Toleransi (menit)</label><input type="number" value={settings.tolerance} onChange={e=>setSettings({...settings,tolerance:e.target.value})}/></div>
-                            </div>
-                            <div className="grid two">
-                              <div className="field"><label>Jam pulang</label><input type="time" value={settings.end} onChange={e=>setSettings({...settings,end:e.target.value})}/></div>
-                              <div className="field"><label>Lembur otomatis</label><input type="time" value={settings.overtimeAfter} onChange={e=>setSettings({...settings,overtimeAfter:e.target.value})}/></div>
-                            </div>
-                            <button className="btn primary full" onClick={()=>showToast("Aturan disimpan!")}>Simpan Aturan</button>
-                          </div>
+                          <h3>Bukti Foto</h3>
+                          <div className="photo-box">{photo?<img src={photo}/>:<div className="photo-placeholder">Ambil Foto</div>}</div>
+                          <input type="file" accept="image/*" capture="environment" style={{display:'none'}} ref={camInputRef} onChange={handleFileChange} />
+                          <input type="file" accept="image/*" style={{display:'none'}} ref={galleryInputRef} onChange={handleFileChange} />
+                          <div className="btn-row" style={{marginTop:'12px'}}><button className="btn soft" style={{flex:1}} onClick={()=>camInputRef.current.click()}><Camera size={16}/> Kamera</button><button className="btn ghost" style={{flex:1}} onClick={()=>galleryInputRef.current.click()}><Image size={16}/> Galeri</button></div>
                         </div>
                         <div className="card">
-                          <h3>Validasi Prototype</h3>
-                          <div className="timeline">
-                            <div className="timeline-item"><div className="timeline-dot">1</div><div className="timeline-copy"><b>Staff login personal</b><span>HI-001, HI-002, dst.</span></div></div>
-                            <div className="timeline-item"><div className="timeline-dot">2</div><div className="timeline-copy"><b>Input online terstandar</b><span>Foto & GPS real-time.</span></div></div>
-                            <div className="timeline-item"><div className="timeline-dot">3</div><div className="timeline-copy"><b>Monitoring HR</b><span>Approval tanpa rekap manual.</span></div></div>
-                          </div>
+                          <h3>GPS Lokasi</h3>
+                          <div className="location-preview">{detecting ? 'Mencari...' : (location ? location.address : 'Belum terdeteksi')}</div>
+                          <button className="btn soft full" onClick={detectLocation} disabled={detecting}><Navigation size={16}/> Deteksi Lokasi</button>
                         </div>
                       </div>
-                    )}
-                  </>
-                ) : (
-                  <>
-                    {tab === 'home' && (
-                      <>
-                        <div className="grid kpi">
-                          {(() => {
-                            const rec = records.find(r => r.staff_id === currentUser.id && r.date === todayKey());
-                            const calc = calcRecord(rec);
-                            return (
-                              <>
-                                <div className="card kpi-card"><div className="kpi-icon"><Activity /></div><div className="kpi-value">{calc.status}</div><div className="kpi-label">Status hari ini</div></div>
-                                <div className="card kpi-card"><div className="kpi-icon"><Clock /></div><div className="kpi-value">{rec?.check_in || "-"}</div><div className="kpi-label">Jam Masuk</div></div>
-                                <div className="card kpi-card"><div className="kpi-icon"><LogOut /></div><div className="kpi-value">{rec?.check_out || "-"}</div><div className="kpi-label">Jam Pulang</div></div>
-                                <div className="card kpi-card"><div className="kpi-icon"><AlertCircle /></div><div className="kpi-value">{durationLabel(calc.overtimeMins)}</div><div className="kpi-label">Lembur</div></div>
-                              </>
-                            );
-                          })()}
-                        </div>
-                        <div className="card"><h3>Aktivitas Terakhir</h3><div className="timeline">{records.filter(r=>r.staff_id===currentUser.id).slice(0,3).map(r=>(<div key={r.id} className="timeline-item"><div className="timeline-dot"><CheckCircle size={16}/></div><div className="timeline-copy"><b>{fmtDate(r.date)}</b><span>{r.check_in} - {r.check_out||'Aktif'}</span></div></div>))}</div></div>
-                      </>
-                    )}
-                    {tab === 'attendance' && (
-                      <div className="grid two">
-                        <div className="card">
-                          <h3>Absensi Online</h3>
-                          <div className="form-stack">
-                            <div className="grid two">
-                              <div className="field"><label>Masuk</label><input type="time" value={attendanceForm.checkIn} onChange={e=>setAttendanceForm({...attendanceForm, checkIn:e.target.value})}/></div>
-                              <div className="field"><label>Pulang</label><input type="time" value={attendanceForm.checkOut} onChange={e=>setAttendanceForm({...attendanceForm, checkOut:e.target.value})}/></div>
-                            </div>
-                            <div className="field"><label>Project</label><input value={attendanceForm.project} onChange={e=>setAttendanceForm({...attendanceForm, project:e.target.value})}/></div>
-                            <div className="field"><label>Catatan</label><textarea value={attendanceForm.note} onChange={e=>setAttendanceForm({...attendanceForm, note:e.target.value})}/></div>
-                            <div className="btn-row"><button className="btn primary" onClick={()=>saveAttendance('in')}>Absen Masuk</button><button className="btn warning" onClick={()=>saveAttendance('out')}>Absen Pulang</button></div>
-                          </div>
-                        </div>
-                        <div className="grid">
-                          <div className="card">
-                            <h3>Bukti Foto</h3>
-                            <div className="photo-box">{photo?<img src={photo}/>:<div className="photo-placeholder">Ambil Foto</div>}</div>
-                            <input type="file" accept="image/*" capture="environment" style={{display:'none'}} ref={camInputRef} onChange={handleFileChange} />
-                            <input type="file" accept="image/*" style={{display:'none'}} ref={galleryInputRef} onChange={handleFileChange} />
-                            <div className="btn-row" style={{marginTop:'12px'}}><button className="btn soft" style={{flex:1}} onClick={()=>camInputRef.current.click()}><Camera size={16}/> Kamera</button><button className="btn ghost" style={{flex:1}} onClick={()=>galleryInputRef.current.click()}><Image size={16}/> Galeri</button></div>
-                          </div>
-                          <div className="card">
-                            <h3>GPS Lokasi</h3>
-                            <div className="location-preview">{detecting ? 'Mencari...' : (location ? location.address : 'Belum terdeteksi')}</div>
-                            <button className="btn soft full" onClick={detectLocation} disabled={detecting}><Navigation size={16}/> Deteksi Lokasi</button>
-                          </div>
-                        </div>
-                      </div>
-                    )}
-                    {tab === 'request' && (
-                      <div className="grid two">
-                        <div className="card"><h3>Kirim Pengajuan</h3><div className="form-stack"><div className="field"><label>Tipe</label><select value={requestForm.type} onChange={e=>setRequestForm({...requestForm, type:e.target.value})}><option>Cuti</option><option>Izin</option><option>Sakit</option></select></div><div className="field"><label>Tanggal</label><input type="date" value={requestForm.date} onChange={e=>setRequestForm({...requestForm, date:e.target.value})}/></div><div className="field"><label>Alasan</label><textarea value={requestForm.reason} onChange={e=>setRequestForm({...requestForm, reason:e.target.value})}/></div><button className="btn primary full" onClick={async()=>{await supabase.from('requests').insert([{...requestForm, staff_id:currentUser.id, staff_name:currentUser.name, status:'Menunggu'}]); showToast("Terkirim!"); fetchData();}}>Kirim</button></div></div>
-                        <div className="card"><h3>Riwayat Pengajuan</h3>{requests.filter(r=>r.staff_id===currentUser.id).map(r=>(<div key={r.id} style={{marginBottom:'10px'}}><b>{r.type}</b> ({r.status})</div>))}</div>
-                      </div>
-                    )}
-                    {tab === 'history' && (
-                      <div className="card"><div className="data-table-wrap"><table className="data-table"><thead><tr><th>Tanggal</th><th>Masuk</th><th>Pulang</th><th>Status</th></tr></thead><tbody>{records.filter(r=>r.staff_id===currentUser.id).map(r=><tr key={r.id}><td>{fmtDate(r.date)}</td><td>{r.check_in}</td><td>{r.check_out||'-'}</td><td>{calcRecord(r).status}</td></tr>)}</tbody></table></div></div>
-                    )}
-                  </>
-                )}
-              </div>
-            </main>
-          </div>
+                    </div>
+                  )}
+                  {tab === 'request' && (
+                    <div className="grid two">
+                      <div className="card"><h3>Kirim Pengajuan</h3><div className="form-stack"><div className="field"><label>Tipe</label><select value={requestForm.type} onChange={e=>setRequestForm({...requestForm, type:e.target.value})}><option>Cuti</option><option>Izin</option><option>Sakit</option></select></div><div className="field"><label>Tanggal</label><input type="date" value={requestForm.date} onChange={e=>setRequestForm({...requestForm, date:e.target.value})}/></div><div className="field"><label>Alasan</label><textarea value={requestForm.reason} onChange={e=>setRequestForm({...requestForm, reason:e.target.value})}/></div><button className="btn primary full" onClick={async()=>{await supabase.from('requests').insert([{...requestForm, staff_id:currentUser.id, staff_name:currentUser.name, status:'Menunggu'}]); showToast("Terkirim!"); fetchData();}}>Kirim</button></div></div>
+                      <div className="card"><h3>Riwayat Pengajuan</h3>{requests.filter(r=>r.staff_id===currentUser.id).map(r=>(<div key={r.id} style={{marginBottom:'10px'}}><b>{r.type}</b> ({r.status})</div>))}</div>
+                    </div>
+                  )}
+                  {tab === 'history' && (
+                    <div className="card"><div className="data-table-wrap"><table className="data-table"><thead><tr><th>Tanggal</th><th>Masuk</th><th>Pulang</th><th>Status</th></tr></thead><tbody>{records.filter(r=>r.staff_id===currentUser.id).map(r=><tr key={r.id}><td>{fmtDate(r.date)}</td><td>{r.check_in}</td><td>{r.check_out||'-'}</td><td>{calcRecord(r).status}</td></tr>)}</tbody></table></div></div>
+                  )}
+                </>
+              )}
+            </div>
+          </main>
+        </div>
         )}
       </div>
 
@@ -467,7 +467,7 @@ function App() {
             <div className="grid two"><div className="field"><label>Masuk</label><input type="time" value={manualForm.checkIn} onChange={e=>setManualForm({...manualForm, checkIn:e.target.value})}/></div><div className="field"><label>Pulang</label><input type="time" value={manualForm.checkOut} onChange={e=>setManualForm({...manualForm, checkOut:e.target.value})}/></div></div>
             <div className="card" style={{background:'#f8faff'}}><div className="location-preview">{detecting?'Mencari...':(manualLocation?manualLocation.address:'Belum ada')}</div><button className="btn soft full" onClick={()=>detectLocation('manual')}><Navigation size={16}/> Deteksi</button></div>
             <button className="btn primary full" onClick={handleManualSubmit}>Simpan Absen</button>
-          </div><div className="card"><h3>Foto</h3><div className="photo-box">{manualPhoto?<img src={manualPhoto}/>:<div className="photo-placeholder">No Photo</div>}</div><div className="btn-row"><button className="btn soft" onClick={()=>manualCamRef.current.click()}>Kamera</button></div><input type="file" capture="environment" style={{display:'none'}} ref={manualCamRef} onChange={e=>handleFileChange(e,'manual')}/></div></div></div>
+          </div><div className="card"><h3>Foto</h3><div className="photo-box">{manualPhoto?<img src={manualPhoto}/>:<div className="photo-placeholder">No Photo</div>}</div><div className="btn-row" style={{marginTop:'12px'}}><button className="btn soft" style={{flex:1}} onClick={()=>manualCamRef.current.click()}><Camera size={16}/> Kamera</button><button className="btn ghost" style={{flex:1}} onClick={()=>manualGalRef.current.click()}><Image size={16}/> Galeri</button></div><input type="file" capture="environment" style={{display:'none'}} ref={manualCamRef} onChange={e=>handleFileChange(e,'manual')}/><input type="file" style={{display:'none'}} ref={manualGalRef} onChange={e=>handleFileChange(e,'manual')}/></div></div></div>
         </div></div>
       )}
       {showAddStaffModal && (
