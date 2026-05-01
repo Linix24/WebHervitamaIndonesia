@@ -1,9 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { 
   Home, Camera, ClipboardList, History, Users, 
   Activity, Settings, LogOut, CheckCircle, Clock, 
   MapPin, AlertCircle, Search, Filter, MoreHorizontal,
-  ChevronDown, Plus, Trash2, Send, DollarSign, CheckSquare
+  ChevronDown, Plus, Trash2, Send, DollarSign, CheckSquare, Upload
 } from 'lucide-react';
 import { STAFF, ADMIN, DIVISIONS, LOCATIONS } from './data';
 import { 
@@ -27,6 +27,8 @@ function App() {
   const [clock, setClock] = useState('');
   const [loading, setLoading] = useState(false);
   const [search, setSearch] = useState('');
+  
+  const fileInputRef = useRef(null);
 
   const [loginForm, setLoginForm] = useState({ username: '', password: '' });
   const [attendanceForm, setAttendanceForm] = useState({ checkIn: '07:58', checkOut: '', project: '', workType: 'Lapangan', note: '' });
@@ -71,6 +73,18 @@ function App() {
       setCurrentUser(staff); setCurrentRole('staff'); setView('staff'); setTab('home');
       setAttendanceForm(prev => ({ ...prev, project: staff.defaultLocation }));
     } else showToast("Akun tidak ditemukan.");
+  };
+
+  const handleFileChange = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setPhoto(reader.result);
+        showToast("Foto berhasil diambil!");
+      };
+      reader.readAsDataURL(file);
+    }
   };
 
   const calcRecord = (record) => {
@@ -317,7 +331,14 @@ function App() {
                     </div>
                   </div>
                   <div className="grid">
-                    <div className="card"><h3>Bukti Foto</h3><div className="photo-box">{photo?<img src={photo}/>:<div className="photo-placeholder">Ambil Foto</div>}</div><button className="btn soft full" style={{marginTop:'10px'}} onClick={()=>setPhoto(makePhotoData(currentUser.name, attendanceForm.checkIn, attendanceForm.project, initials))}>Simulasikan Kamera</button></div>
+                    <div className="card">
+                      <h3>Bukti Foto</h3>
+                      <div className="photo-box">
+                        {photo?<img src={photo}/>:<div className="photo-placeholder">Ambil Foto</div>}
+                      </div>
+                      <input type="file" accept="image/*" capture="environment" style={{display:'none'}} ref={fileInputRef} onChange={handleFileChange} />
+                      <button className="btn soft full" style={{marginTop:'10px'}} onClick={()=>fileInputRef.current.click()}><Camera size={16}/> Ambil / Pilih Foto</button>
+                    </div>
                     <div className="card"><h3>GPS Lokasi</h3><div className="location-preview">{location?<b>{location.address}</b>:'Belum terdeteksi'}</div><button className="btn soft full" style={{marginTop:'10px'}} onClick={()=>setLocation(makeDemoLocation(currentUser.no))}>Simulasikan Lokasi</button></div>
                   </div>
                 </div>
@@ -344,7 +365,6 @@ function App() {
                           </div>
                         </div>
                       ))}
-                      {requests.filter(r=>r.staff_id===currentUser.id).length === 0 && <div className="empty">Belum ada histori pengajuan.</div>}
                     </div>
                   </div>
                 </div>
