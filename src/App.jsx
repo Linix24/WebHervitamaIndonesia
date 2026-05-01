@@ -284,9 +284,6 @@ function App() {
                     <button className={tab==='history'?'active':''} onClick={()=>setTab('history')}><Clock size={18} color="#6366f1"/> Riwayat Saya</button>
                     <button className={tab==='request'?'active':''} onClick={()=>setTab('request')}><ClipboardList size={18} color="#f59e0b"/> Pengajuan</button>
                     <button className={tab==='home'?'active':''} onClick={()=>setTab('home')}><User size={18} color="#8b5cf6"/> Profil & Jadwal</button>
-                    
-                    <div className="nav-label">Aksi Cepat</div>
-                    <button className="btn ghost full" style={{justifyContent:'flex-start', paddingLeft:'18px'}} onClick={()=>showToast("Demo otomatis berjalan...")}><Activity size={18} color="#f97316"/> Jalankan Demo Otomatis</button>
                   </>
                 ) : (
                   <>
@@ -302,8 +299,8 @@ function App() {
               </div>
 
               <div className="divider" style={{background:'rgba(255,255,255,0.05)'}}></div>
-              <button className="btn ghost full" style={{color:'#9ca3af', justifyContent:'flex-start', paddingLeft:'18px'}} onClick={()=>setView('login')}>
-                <LogOut size={18} color="#9ca3af" style={{marginRight:'12px'}}/> Kembali Login
+              <button className="nav button" style={{background:'transparent'}} onClick={()=>setView('login')}>
+                <LogOut size={18} color="#ffffff" style={{marginRight:'12px'}}/> Kembali Login
               </button>
             </aside>
             <main className="main">

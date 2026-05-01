@@ -520,20 +520,16 @@ textarea {
   gap: 12px;
   padding: 12px 18px;
   border-radius: 14px;
-  color: #e5e7eb; /* Light text */
+  color: #ffffff; /* Default text: White */
   font-weight: 600;
   transition: all 0.2s ease;
   width: 100%;
   text-align: left;
 }
 
-.nav button:hover {
-  background: rgba(255, 255, 255, 0.05);
-}
-
-.nav button.active {
-  background: #ffffff; /* White pill for active */
-  color: #111827; /* Dark text for active */
+.nav button:hover, .nav button.active {
+  background: #ffffff !important; /* White background */
+  color: #111827 !important; /* Black/Dark text */
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
 }
 
