@@ -3,7 +3,7 @@ import {
   Home, Camera, ClipboardList, History, Users, 
   Activity, Settings, LogOut, CheckCircle, Clock, 
   MapPin, AlertCircle, Search, Filter, MoreHorizontal,
-  ChevronDown, Plus, Trash2, Send, DollarSign, CheckSquare, Upload, Image, Navigation, X, User, UserPlus, Info
+  ChevronDown, Plus, Trash2, Send, DollarSign, CheckSquare, Upload, Image, Navigation, X, User, UserPlus, Info, Calendar, Heart, MessageSquare
 } from 'lucide-react';
 import { STAFF as INITIAL_STAFF, ADMIN, DIVISIONS, LOCATIONS } from './data';
 import { 
@@ -518,15 +518,41 @@ function App() {
         </div></div>
       )}
       {selectedStaff && (
-        <div className="modal-backdrop"><div className="modal animate-in" style={{maxWidth:'600px'}}>
+        <div className="modal-backdrop"><div className="modal animate-in" style={{maxWidth:'700px'}}>
           <div className="modal-head"><h3>Profil {selectedStaff.name}</h3><button className="btn ghost small" onClick={()=>setSelectedStaff(null)}><X size={18}/></button></div>
           <div className="modal-body">
-            <div className="user-chip" style={{background:'#f8faff', padding:'20px', borderRadius:'22px'}}><div className="avatar">{initials(selectedStaff.name)}</div><div><b>{selectedStaff.name}</b><br/><small>{selectedStaff.username}</small></div></div>
-            <h4 style={{marginTop:'20px'}}>Rekap Kehadiran</h4>
-            <div className="grid two">
-              {(() => { const s = getStaffStats(selectedStaff.id); return (<><div className="card"><b>{s.present}</b><small> Hadir</small></div><div className="card"><b>{s.overtime}</b><small> Lembur</small></div></>); })()}
+            <div className="user-chip" style={{background:'#f8faff', padding:'20px', borderRadius:'22px'}}><div className="avatar">{initials(selectedStaff.name)}</div><div><b>{selectedStaff.name}</b><br/><small>{selectedStaff.id} • {selectedStaff.division}</small></div></div>
+            <h4 style={{marginTop:'25px', marginBottom:'15px'}}>Rekap Kehadiran (Periode Ini)</h4>
+            <div className="grid two" style={{gap:'12px'}}>
+              {(() => { 
+                const s = getStaffStats(selectedStaff.id); 
+                return (
+                  <>
+                    <div className="card" style={{display:'flex', alignItems:'center', gap:'12px', padding:'15px', background:'#f0f7ff'}}>
+                      <div style={{background:'var(--brand)', color:'white', padding:'10px', borderRadius:'12px'}}><Calendar size={20}/></div>
+                      <div><b>{s.present}</b><br/><small>Hadir</small></div>
+                    </div>
+                    <div className="card" style={{display:'flex', alignItems:'center', gap:'12px', padding:'15px', background:'#fff9f0'}}>
+                      <div style={{background:'var(--warning)', color:'white', padding:'10px', borderRadius:'12px'}}><Clock size={20}/></div>
+                      <div><b>{s.overtime}</b><br/><small>Lembur</small></div>
+                    </div>
+                    <div className="card" style={{display:'flex', alignItems:'center', gap:'12px', padding:'15px', background:'#f0fff4'}}>
+                      <div style={{background:'#22c55e', color:'white', padding:'10px', borderRadius:'12px'}}><CheckCircle size={20}/></div>
+                      <div><b>{s.izin}</b><br/><small>Izin</small></div>
+                    </div>
+                    <div className="card" style={{display:'flex', alignItems:'center', gap:'12px', padding:'15px', background:'#fff5f5'}}>
+                      <div style={{background:'#ef4444', color:'white', padding:'10px', borderRadius:'12px'}}><Heart size={20}/></div>
+                      <div><b>{s.sakit}</b><br/><small>Sakit</small></div>
+                    </div>
+                    <div className="card" style={{display:'flex', alignItems:'center', gap:'12px', padding:'15px', background:'#f3f0ff'}}>
+                      <div style={{background:'#8b5cf6', color:'white', padding:'10px', borderRadius:'12px'}}><MessageSquare size={20}/></div>
+                      <div><b>{s.cuti}</b><br/><small>Cuti</small></div>
+                    </div>
+                  </>
+                ); 
+              })()}
             </div>
-            <button className="btn ghost full" onClick={()=>setSelectedStaff(null)}>Tutup</button>
+            <button className="btn primary full" style={{marginTop:'25px'}} onClick={()=>setSelectedStaff(null)}>Tutup Profil</button>
           </div>
         </div></div>
       )}
