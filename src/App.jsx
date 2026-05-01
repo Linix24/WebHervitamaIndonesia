@@ -300,7 +300,7 @@ function App() {
 
               <div className="divider" style={{background:'rgba(255,255,255,0.05)'}}></div>
               <button className="nav button btn-logout" onClick={()=>setView('login')}>
-                <LogOut size={18} color="#ffffff" style={{marginRight:'12px'}}/> Keluar
+                <LogOut size={18} color="#ffffff"/> Keluar
               </button>
             </aside>
             <main className="main">

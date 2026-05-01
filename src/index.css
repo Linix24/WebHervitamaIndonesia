@@ -537,12 +537,14 @@ textarea {
   background: #ef4444 !important; /* Vivid Red */
   color: #ffffff !important; /* Pure White */
   margin-top: auto;
-  border-radius: 14px;
+  border-radius: 12px;
+  padding: 10px 18px !important; /* Reduced height */
+  justify-content: center !important; /* Centered content */
 }
 
 .btn-logout:hover {
   background: #dc2626 !important; /* Darker Red on Hover */
-  transform: translateY(-2px);
+  transform: translateY(-1px);
 }
 
 .sidebar .logo {
