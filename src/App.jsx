@@ -3,9 +3,9 @@ import {
   Home, Camera, ClipboardList, History, Users, 
   Activity, Settings, LogOut, CheckCircle, Clock, 
   MapPin, AlertCircle, Search, Filter, MoreHorizontal,
-  ChevronDown, Plus, Trash2, Send, DollarSign, CheckSquare, Upload, Image, Navigation, X, User
+  ChevronDown, Plus, Trash2, Send, DollarSign, CheckSquare, Upload, Image, Navigation, X, User, UserPlus
 } from 'lucide-react';
-import { STAFF, ADMIN, DIVISIONS, LOCATIONS } from './data';
+import { STAFF as INITIAL_STAFF, ADMIN, DIVISIONS, LOCATIONS } from './data';
 import { 
   todayKey, nowTime, fmtDate, initials, 
   minutesOf, durationLabel, cryptoId, 
@@ -30,13 +30,19 @@ function App() {
   const [statusFilter, setStatusFilter] = useState('Semua status');
   const [detecting, setDetecting] = useState(false);
   
+  // Dynamic Staff List
+  const [staffList, setStaffList] = useState(INITIAL_STAFF);
+
   // Modals State
   const [showManualModal, setShowManualModal] = useState(false);
-  const [selectedStaff, setSelectedStaff] = useState(null); // For Detail View
+  const [showAddStaffModal, setShowAddStaffModal] = useState(false);
+  const [selectedStaff, setSelectedStaff] = useState(null); 
 
   const [manualForm, setManualForm] = useState({ staffId: '', checkIn: '08:00', checkOut: '', date: todayKey() });
   const [manualPhoto, setManualPhoto] = useState('');
   const [manualLocation, setManualLocation] = useState(null);
+
+  const [newStaffForm, setNewStaffForm] = useState({ name: '', username: '', password: '', division: 'Engineering', workType: 'Kantor', defaultLocation: 'Head Office' });
 
   const camInputRef = useRef(null);
   const galleryInputRef = useRef(null);
@@ -81,7 +87,7 @@ function App() {
       setCurrentUser(ADMIN); setCurrentRole('admin'); setView('admin'); setTab('home');
       return;
     }
-    const staff = STAFF.find(s => s.username === username && s.password === password);
+    const staff = staffList.find(s => s.username === username && s.password === password);
     if (staff) {
       setCurrentUser(staff); setCurrentRole('staff'); setView('staff'); setTab('home');
       setAttendanceForm(prev => ({ ...prev, project: staff.defaultLocation }));
@@ -155,7 +161,7 @@ function App() {
 
   const handleManualSubmit = async () => {
     if (!manualForm.staffId) return showToast("Pilih karyawan!");
-    const staff = STAFF.find(s => s.id === manualForm.staffId);
+    const staff = staffList.find(s => s.id === manualForm.staffId);
     const payload = {
       staff_id: staff.id, staff_name: staff.name,
       date: manualForm.date, check_in: manualForm.checkIn, check_out: manualForm.checkOut || null,
@@ -170,6 +176,23 @@ function App() {
       setShowManualModal(false);
       setManualPhoto(''); setManualLocation(null);
       fetchData();
+    }
+  };
+
+  const handleAddStaff = () => {
+    if (!newStaffForm.name || !newStaffForm.username) return showToast("Lengkapi data!");
+    const id = `HI-${String(staffList.length + 1).padStart(3, '0')}`;
+    const newStaff = { ...newStaffForm, id };
+    setStaffList([...staffList, newStaff]);
+    setShowAddStaffModal(false);
+    setNewStaffForm({ name: '', username: '', password: '', division: 'Engineering', workType: 'Kantor', defaultLocation: 'Head Office' });
+    showToast("Karyawan berhasil ditambah!");
+  };
+
+  const handleDeleteStaff = (id) => {
+    if (confirm("Hapus karyawan ini?")) {
+      setStaffList(staffList.filter(s => s.id !== id));
+      showToast("Karyawan dihapus.");
     }
   };
 
@@ -205,7 +228,7 @@ function App() {
           <h1>Monitoring & Payroll dalam satu dashboard.</h1>
           <p>Sistem ini sekarang mencakup monitoring real-time, approval pengajuan staff, dan rekap payroll otomatis.</p>
           <div className="hero-grid">
-            <div className="hero-mini"><b>{STAFF.length}</b><span>Staff</span></div>
+            <div className="hero-mini"><b>{staffList.length}</b><span>Staff</span></div>
             <div className="hero-mini"><b>Cloud</b><span>Supabase</span></div>
             <div className="hero-mini"><b>Real-time</b><span>Vite React</span></div>
           </div>
@@ -264,7 +287,7 @@ function App() {
 
         <main className="main">
           <div className="topbar">
-            <div><h2>{tab==='monitor'?'Monitoring Online':tab==='payroll'?'Rekap Payroll':tab==='stafflist'?'Daftar Staff':tab==='settings'?'Aturan Absensi':tab.charAt(0).toUpperCase()+tab.slice(1)}</h2><small>{clock}</small></div>
+            <div><h2>{tab==='monitor'?'Monitoring Online':tab==='payroll'?'Rekap Payroll':tab==='stafflist'?'Kelola Akun Staff':tab==='settings'?'Aturan Absensi':tab.charAt(0).toUpperCase()+tab.slice(1)}</h2><small>{clock}</small></div>
             <div className="live-badge"><span className={loading?"pulse warning":"pulse"}></span> {loading?"Syncing...":"Live Cloud"}</div>
           </div>
 
@@ -273,13 +296,13 @@ function App() {
               {tab === 'home' && (
                 <>
                   <div className="grid kpi">
-                    <div className="card kpi-card"><div className="kpi-icon"><Users/></div><div className="kpi-value">{STAFF.length}</div><div className="kpi-label">Total Staff</div></div>
+                    <div className="card kpi-card"><div className="kpi-icon"><Users/></div><div className="kpi-value">{staffList.length}</div><div className="kpi-label">Total Staff</div></div>
                     <div className="card kpi-card"><div className="kpi-icon"><CheckCircle/></div><div className="kpi-value">{records.filter(r=>r.date===todayKey()).length}</div><div className="kpi-label">Hadir Hari Ini</div></div>
                     <div className="card kpi-card"><div className="kpi-icon"><AlertCircle/></div><div className="kpi-value">{requests.filter(r=>r.status==='Menunggu').length}</div><div className="kpi-label">Butuh Approval</div></div>
-                    <div className="card kpi-card"><div className="kpi-icon"><DollarSign/></div><div className="kpi-value">52</div><div className="kpi-label">Total Karyawan</div></div>
+                    <div className="card kpi-card"><div className="kpi-icon"><DollarSign/></div><div className="kpi-value">Mei</div><div className="kpi-label">Periode Aktif</div></div>
                   </div>
                   <div className="card">
-                    <h3>Rekapitulasi Kehadiran Mei 2026</h3>
+                    <h3>Ringkasan Kehadiran Bulanan</h3>
                     <div className="mini-metrics" style={{marginTop:'15px'}}>
                       <div className="mini-metric"><b>{records.length}</b><span>Total Absensi</span></div>
                       <div className="mini-metric"><b>{records.filter(r=>calcRecord(r).status==='Telat').length}</b><span>Total Telat</span></div>
@@ -309,7 +332,7 @@ function App() {
                     <table className="data-table">
                       <thead><tr><th>Karyawan</th><th>Masuk</th><th>Pulang</th><th>Status</th><th>Telat</th><th>Lembur</th><th>Lokasi</th><th>Aksi</th></tr></thead>
                       <tbody>
-                        {STAFF.filter(s => {
+                        {staffList.filter(s => {
                           const matchesSearch = s.name.toLowerCase().includes(search.toLowerCase()) || s.username.toLowerCase().includes(search.toLowerCase());
                           const r = records.find(rec => rec.staff_id === s.id && rec.date === todayKey());
                           const c = calcRecord(r);
@@ -344,7 +367,7 @@ function App() {
                     <table className="data-table">
                       <thead><tr><th>Nama</th><th>Hadir</th><th>Telat</th><th>Lembur</th><th>Gapok</th><th>Bonus</th><th>Total</th></tr></thead>
                       <tbody>
-                        {STAFF.slice(0, 10).map(s => (
+                        {staffList.slice(0, 10).map(s => (
                           <tr key={s.id}>
                             <td><b>{s.name}</b></td><td>22 Hari</td><td>0m</td><td>5j</td><td>Rp 5.500.000</td><td>Rp 250.000</td><td><b>Rp 5.750.000</b></td>
                           </tr>
@@ -378,14 +401,23 @@ function App() {
 
               {tab === 'stafflist' && (
                 <div className="card">
+                  <div className="table-tools">
+                    <div className="left"><div className="search"><Search size={14}/><input placeholder="Cari karyawan..." value={search} onChange={e=>setSearch(e.target.value)}/></div></div>
+                    <div className="right"><button className="btn primary" onClick={()=>setShowAddStaffModal(true)}><UserPlus size={16}/> Tambah Staff Baru</button></div>
+                  </div>
                   <div className="data-table-wrap">
                     <table className="data-table">
-                      <thead><tr><th>ID</th><th>Nama</th><th>Divisi</th><th>Tipe Kerja</th><th>Aksi</th></tr></thead>
+                      <thead><tr><th>ID</th><th>Nama</th><th>Divisi</th><th>Username</th><th>Password</th><th>Aksi</th></tr></thead>
                       <tbody>
-                        {STAFF.map(s => (
+                        {staffList.filter(s => s.name.toLowerCase().includes(search.toLowerCase())).map(s => (
                           <tr key={s.id}>
-                            <td><code>{s.id}</code></td><td><b>{s.name}</b></td><td>{s.division}</td><td>{s.workType}</td>
-                            <td><button className="btn ghost small" onClick={()=>setSelectedStaff(s)}>Edit</button></td>
+                            <td><code>{s.id}</code></td><td><b>{s.name}</b></td><td>{s.division}</td><td>{s.username}</td><td><code>{s.password}</code></td>
+                            <td>
+                              <div className="btn-row">
+                                <button className="btn ghost small" onClick={()=>setSelectedStaff(s)}>Detail</button>
+                                <button className="btn danger small" onClick={()=>handleDeleteStaff(s.id)}><Trash2 size={14}/></button>
+                              </div>
+                            </td>
                           </tr>
                         ))}
                       </tbody>
@@ -564,7 +596,7 @@ function App() {
                     <label>Pilih Karyawan</label>
                     <select value={manualForm.staffId} onChange={e=>setManualForm({...manualForm, staffId:e.target.value})}>
                       <option value="">-- Pilih --</option>
-                      {STAFF.map(s => <option key={s.id} value={s.id}>{s.name} ({s.username})</option>)}
+                      {staffList.map(s => <option key={s.id} value={s.id}>{s.name} ({s.username})</option>)}
                     </select>
                   </div>
                   <div className="field">
@@ -606,6 +638,32 @@ function App() {
                     </div>
                   </div>
                 </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Add Staff Modal */}
+      {showAddStaffModal && (
+        <div className="modal-backdrop">
+          <div className="modal" style={{maxWidth:'500px'}}>
+            <div className="modal-head">
+              <h3>Tambah Staff Baru</h3>
+              <button className="btn ghost small" onClick={()=>setShowAddStaffModal(false)}><X size={18}/></button>
+            </div>
+            <div className="modal-body">
+              <div className="form-stack">
+                <div className="field"><label>Nama Lengkap</label><input placeholder="Contoh: Budi Santoso" value={newStaffForm.name} onChange={e=>setNewStaffForm({...newStaffForm, name:e.target.value})}/></div>
+                <div className="field"><label>Username Login</label><input placeholder="Contoh: BUDI-HI" value={newStaffForm.username} onChange={e=>setNewStaffForm({...newStaffForm, username:e.target.value.toUpperCase()})}/></div>
+                <div className="field"><label>Password</label><input type="password" placeholder="Password" value={newStaffForm.password} onChange={e=>setNewStaffForm({...newStaffForm, password:e.target.value})}/></div>
+                <div className="field">
+                  <label>Divisi</label>
+                  <select value={newStaffForm.division} onChange={e=>setNewStaffForm({...newStaffForm, division:e.target.value})}>
+                    {DIVISIONS.map(d => <option key={d} value={d}>{d}</option>)}
+                  </select>
+                </div>
+                <button className="btn primary full" style={{marginTop:'15px'}} onClick={handleAddStaff}>Daftarkan Karyawan</button>
               </div>
             </div>
           </div>
