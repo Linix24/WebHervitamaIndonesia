@@ -533,6 +533,18 @@ textarea {
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
 }
 
+.btn-logout {
+  background: #ef4444 !important; /* Vivid Red */
+  color: #ffffff !important; /* Pure White */
+  margin-top: auto;
+  border-radius: 14px;
+}
+
+.btn-logout:hover {
+  background: #dc2626 !important; /* Darker Red on Hover */
+  transform: translateY(-2px);
+}
+
 .sidebar .logo {
   color: white;
 }
