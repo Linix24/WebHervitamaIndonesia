@@ -326,19 +326,27 @@ function App() {
                           <table className="data-table">
                             <thead><tr><th>Karyawan</th><th>Masuk</th><th>Pulang</th><th>Status</th><th>Telat</th><th>Lembur</th><th>Aksi</th></tr></thead>
                             <tbody>
-                              {staffList.filter(s => s.name.toLowerCase().includes(search.toLowerCase())).map(s => {
-                                const r = records.find(rec=>rec.staff_id===s.id && rec.date===todayKey());
-                                const c = calcRecord(r);
-                                return (
-                                  <tr key={s.id}>
-                                    <td><div className="employee-cell"><div className="mini-avatar">{initials(s.name)}</div><div><b>{s.name}</b><br/><small className="muted">{s.division}</small></div></div></td>
-                                    <td>{r?.check_in||'-'}</td><td>{r?.check_out||'-'}</td>
-                                    <td><span className={`status-pill ${c.statusClass}`}>{c.status}</span></td>
-                                    <td>{durationLabel(c.lateMins)}</td><td>{durationLabel(c.overtimeMins)}</td>
-                                    <td><button className="btn ghost small" onClick={()=>setSelectedStaff(s)}>Detail</button></td>
-                                  </tr>
-                                );
-                              })}
+                              {staffList
+                                .filter(s => s.name.toLowerCase().includes(search.toLowerCase()))
+                                .filter(s => {
+                                  if (statusFilter === 'Semua status') return true;
+                                  const r = records.find(rec => rec.staff_id === s.id && rec.date === todayKey());
+                                  const c = calcRecord(r);
+                                  return c.status === statusFilter;
+                                })
+                                .map(s => {
+                                  const r = records.find(rec=>rec.staff_id===s.id && rec.date===todayKey());
+                                  const c = calcRecord(r);
+                                  return (
+                                    <tr key={s.id}>
+                                      <td><div className="employee-cell"><div className="mini-avatar">{initials(s.name)}</div><div><b>{s.name}</b><br/><small className="muted">{s.division}</small></div></div></td>
+                                      <td>{r?.check_in||'-'}</td><td>{r?.check_out||'-'}</td>
+                                      <td><span className={`status-pill ${c.statusClass}`}>{c.status}</span></td>
+                                      <td>{durationLabel(c.lateMins)}</td><td>{durationLabel(c.overtimeMins)}</td>
+                                      <td><button className="btn ghost small" onClick={()=>setSelectedStaff(s)}>Detail</button></td>
+                                    </tr>
+                                  );
+                                })}
                             </tbody>
                           </table>
                         </div>
