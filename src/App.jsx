@@ -33,9 +33,13 @@ function App() {
   // Manual Attendance Modal State
   const [showManualModal, setShowManualModal] = useState(false);
   const [manualForm, setManualForm] = useState({ staffId: '', checkIn: '08:00', checkOut: '', date: todayKey() });
+  const [manualPhoto, setManualPhoto] = useState('');
+  const [manualLocation, setManualLocation] = useState(null);
 
   const camInputRef = useRef(null);
   const galleryInputRef = useRef(null);
+  const manualCamRef = useRef(null);
+  const manualGalRef = useRef(null);
 
   const [loginForm, setLoginForm] = useState({ username: '', password: '' });
   const [attendanceForm, setAttendanceForm] = useState({ checkIn: '07:58', checkOut: '', project: '', workType: 'Lapangan', note: '' });
@@ -82,19 +86,20 @@ function App() {
     } else showToast("Akun tidak ditemukan.");
   };
 
-  const handleFileChange = (e) => {
+  const handleFileChange = (e, target = 'staff') => {
     const file = e.target.files[0];
     if (file) {
       const reader = new FileReader();
       reader.onloadend = () => {
-        setPhoto(reader.result);
+        if (target === 'manual') setManualPhoto(reader.result);
+        else setPhoto(reader.result);
         showToast("Foto berhasil dimuat!");
       };
       reader.readAsDataURL(file);
     }
   };
 
-  const detectLocation = () => {
+  const detectLocation = (target = 'staff') => {
     if (!navigator.geolocation) { showToast("Browser tidak mendukung GPS."); return; }
     setDetecting(true); showToast("Sedang mendeteksi posisi...");
     navigator.geolocation.getCurrentPosition(async (pos) => {
@@ -103,10 +108,14 @@ function App() {
         const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}&zoom=18&addressdetails=1`);
         const data = await res.json();
         const address = data.display_name || `${latitude}, ${longitude}`;
-        setLocation({ lat: latitude.toFixed(6), lng: longitude.toFixed(6), address });
+        const locObj = { lat: latitude.toFixed(6), lng: longitude.toFixed(6), address };
+        if (target === 'manual') setManualLocation(locObj);
+        else setLocation(locObj);
         showToast("Lokasi berhasil dideteksi!");
       } catch (e) {
-        setLocation({ lat: latitude.toFixed(6), lng: longitude.toFixed(6), address: `Posisi: ${latitude}, ${longitude}` });
+        const locObj = { lat: latitude.toFixed(6), lng: longitude.toFixed(6), address: `Posisi: ${latitude}, ${longitude}` };
+        if (target === 'manual') setManualLocation(locObj);
+        else setLocation(locObj);
         showToast("Lokasi didapat (tanpa alamat).");
       } finally { setDetecting(false); }
     }, (err) => { showToast("Gagal akses GPS."); setDetecting(false); }, { enableHighAccuracy: true });
@@ -148,13 +157,16 @@ function App() {
     const payload = {
       staff_id: staff.id, staff_name: staff.name,
       date: manualForm.date, check_in: manualForm.checkIn, check_out: manualForm.checkOut || null,
-      project: "Manual Input", work_type: "Kantor", note: "Input oleh Admin"
+      project: "Manual Input", work_type: "Kantor", note: "Input oleh Admin",
+      photo: manualPhoto,
+      lat: manualLocation?.lat, lng: manualLocation?.lng, address: manualLocation?.address
     };
     const existing = records.find(r => r.staff_id === staff.id && r.date === manualForm.date);
     const { error } = existing ? await supabase.from('attendance').update(payload).eq('id', existing.id) : await supabase.from('attendance').insert([payload]);
     if (error) showToast("Gagal menyimpan."); else {
       showToast("Berhasil tambah absen!");
       setShowManualModal(false);
+      setManualPhoto(''); setManualLocation(null);
       fetchData();
     }
   };
@@ -468,36 +480,59 @@ function App() {
       {/* Manual Attendance Modal */}
       {showManualModal && (
         <div className="modal-backdrop">
-          <div className="modal" style={{maxWidth:'500px'}}>
+          <div className="modal" style={{maxWidth:'900px'}}>
             <div className="modal-head">
               <h3>Tambah Absen Manual</h3>
               <button className="btn ghost small" onClick={()=>setShowManualModal(false)}><X size={18}/></button>
             </div>
             <div className="modal-body">
-              <div className="form-stack">
-                <div className="field">
-                  <label>Pilih Karyawan</label>
-                  <select value={manualForm.staffId} onChange={e=>setManualForm({...manualForm, staffId:e.target.value})}>
-                    <option value="">-- Pilih --</option>
-                    {STAFF.map(s => <option key={s.id} value={s.id}>{s.name} ({s.username})</option>)}
-                  </select>
-                </div>
-                <div className="field">
-                  <label>Tanggal</label>
-                  <input type="date" value={manualForm.date} onChange={e=>setManualForm({...manualForm, date:e.target.value})}/>
-                </div>
-                <div className="grid two">
+              <div className="grid two">
+                <div className="form-stack">
                   <div className="field">
-                    <label>Jam Masuk</label>
-                    <input type="time" value={manualForm.checkIn} onChange={e=>setManualForm({...manualForm, checkIn:e.target.value})}/>
+                    <label>Pilih Karyawan</label>
+                    <select value={manualForm.staffId} onChange={e=>setManualForm({...manualForm, staffId:e.target.value})}>
+                      <option value="">-- Pilih --</option>
+                      {STAFF.map(s => <option key={s.id} value={s.id}>{s.name} ({s.username})</option>)}
+                    </select>
                   </div>
                   <div className="field">
-                    <label>Jam Pulang</label>
-                    <input type="time" value={manualForm.checkOut} onChange={e=>setManualForm({...manualForm, checkOut:e.target.value})}/>
+                    <label>Tanggal</label>
+                    <input type="date" value={manualForm.date} onChange={e=>setManualForm({...manualForm, date:e.target.value})}/>
                   </div>
+                  <div className="grid two">
+                    <div className="field">
+                      <label>Jam Masuk</label>
+                      <input type="time" value={manualForm.checkIn} onChange={e=>setManualForm({...manualForm, checkIn:e.target.value})}/>
+                    </div>
+                    <div className="field">
+                      <label>Jam Pulang</label>
+                      <input type="time" value={manualForm.checkOut} onChange={e=>setManualForm({...manualForm, checkOut:e.target.value})}/>
+                    </div>
+                  </div>
+                  <div className="card" style={{marginTop:'12px', background:'#f8faff'}}>
+                    <div className="location-preview" style={{minHeight:'60px', display:'flex', alignItems:'center', justifyContent:'center', textAlign:'center', border:'0'}}>
+                      {detecting ? <span>Mencari...</span> : (manualLocation ? <b>{manualLocation.address}</b> : 'Lokasi belum diset')}
+                    </div>
+                    <button className="btn soft full" style={{marginTop:'10px'}} onClick={()=>detectLocation('manual')} disabled={detecting}>
+                      <Navigation size={16}/> Deteksi Lokasi
+                    </button>
+                  </div>
+                  <button className="btn primary full" style={{marginTop:'20px'}} onClick={handleManualSubmit}>Simpan Absen</button>
                 </div>
-                <div className="btn-row" style={{marginTop:'20px'}}>
-                  <button className="btn primary full" onClick={handleManualSubmit}>Simpan Absen</button>
+                
+                <div className="grid">
+                  <div className="card" style={{padding:'15px'}}>
+                    <h3>Bukti Foto</h3>
+                    <div className="photo-box" style={{minHeight:'200px'}}>
+                      {manualPhoto ? <img src={manualPhoto}/> : <div className="photo-placeholder">Belum ada foto</div>}
+                    </div>
+                    <input type="file" accept="image/*" capture="environment" style={{display:'none'}} ref={manualCamRef} onChange={(e)=>handleFileChange(e, 'manual')} />
+                    <input type="file" accept="image/*" style={{display:'none'}} ref={manualGalRef} onChange={(e)=>handleFileChange(e, 'manual')} />
+                    <div className="btn-row" style={{marginTop:'10px'}}>
+                      <button className="btn soft" style={{flex:1}} onClick={()=>manualCamRef.current.click()}><Camera size={14}/> Kamera</button>
+                      <button className="btn ghost" style={{flex:1}} onClick={()=>manualGalRef.current.click()}><Image size={14}/> Galeri</button>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
