@@ -270,18 +270,27 @@ function App() {
         ) : (
           <div className="layout">
             <aside className="sidebar">
-              <div className="logo"><div className="logo-mark">HI</div><div>Hervitama<br/><span className="muted" style={{fontSize:'12px'}}>Online HRIS</span></div></div>
-              <div className="user-chip"><div className="avatar">{initials(currentUser.name)}</div><div><b>{currentUser.name}</b><small>{currentRole==='admin'?'Admin HR':currentUser.division}</small></div></div>
+              <div className="logo"><div className="logo-mark">HI</div><div>Hervitama HRIS<br/><span className="muted" style={{fontSize:'12px'}}>Live prototype demo</span></div></div>
+              <div className="user-chip">
+                <div className="avatar">{initials(currentUser.name)}</div>
+                <div><b>{currentUser.name}</b><br/><small>{currentRole==='admin'?'Administrator':currentUser.division}</small></div>
+              </div>
+
               <div className="nav">
                 {currentRole === 'staff' ? (
                   <>
-                    <button className={tab==='home'?'active':''} onClick={()=>setTab('home')}><Home size={18} color="#3b82f6"/> Dashboard</button>
-                    <button className={tab==='attendance'?'active':''} onClick={()=>setTab('attendance')}><Camera size={18} color="#f97316"/> Absensi Online</button>
-                    <button className={tab==='request'?'active':''} onClick={()=>setTab('request')}><ClipboardList size={18} color="#22c55e"/> Pengajuan</button>
-                    <button className={tab==='history'?'active':''} onClick={()=>setTab('history')}><History size={18} color="#a855f7"/> Riwayat Saya</button>
+                    <div className="nav-label">Akun Karyawan</div>
+                    <button className={tab==='attendance'?'active':''} onClick={()=>setTab('attendance')}><MapPin size={18} color="#ec4899"/> Absen Hari Ini</button>
+                    <button className={tab==='history'?'active':''} onClick={()=>setTab('history')}><Clock size={18} color="#6366f1"/> Riwayat Saya</button>
+                    <button className={tab==='request'?'active':''} onClick={()=>setTab('request')}><ClipboardList size={18} color="#f59e0b"/> Pengajuan</button>
+                    <button className={tab==='home'?'active':''} onClick={()=>setTab('home')}><User size={18} color="#8b5cf6"/> Profil & Jadwal</button>
+                    
+                    <div className="nav-label">Aksi Cepat</div>
+                    <button className="btn ghost full" style={{justifyContent:'flex-start', paddingLeft:'18px'}} onClick={()=>showToast("Demo otomatis berjalan...")}><Activity size={18} color="#f97316"/> Jalankan Demo Otomatis</button>
                   </>
                 ) : (
                   <>
+                    <div className="nav-label">Manajemen HR</div>
                     <button className={tab==='home'?'active':''} onClick={()=>setTab('home')}><Activity size={18} color="#3b82f6"/> Ringkasan HR</button>
                     <button className={tab==='monitor'?'active':''} onClick={()=>setTab('monitor')}><Users size={18} color="#06b6d4"/> Monitoring Online</button>
                     <button className={tab==='payroll'?'active':''} onClick={()=>setTab('payroll')}><DollarSign size={18} color="#eab308"/> Rekap Payroll</button>
@@ -291,8 +300,11 @@ function App() {
                   </>
                 )}
               </div>
-              <div className="divider" style={{background:'rgba(255,255,255,0.1)'}}></div>
-              <button className="btn ghost full" style={{color:'#f87171'}} onClick={()=>setView('login')}><LogOut size={18} color="#f87171"/> Keluar</button>
+
+              <div className="divider" style={{background:'rgba(255,255,255,0.05)'}}></div>
+              <button className="btn ghost full" style={{color:'#9ca3af', justifyContent:'flex-start', paddingLeft:'18px'}} onClick={()=>setView('login')}>
+                <LogOut size={18} color="#9ca3af" style={{marginRight:'12px'}}/> Kembali Login
+              </button>
             </aside>
             <main className="main">
               <div className="topbar">

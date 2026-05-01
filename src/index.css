@@ -489,31 +489,38 @@ textarea {
 
 .sidebar {
   width: 280px;
-  background: rgba(15, 23, 42, 0.9); /* Deep Navy Glass */
-  backdrop-filter: blur(20px);
-  border-right: 1px solid rgba(255, 255, 255, 0.1);
-  padding: 30px 20px;
+  background: #111827; /* Darker Navy like the example */
+  border-right: 1px solid rgba(255, 255, 255, 0.05);
+  padding: 25px 20px;
   display: flex;
   flex-direction: column;
-  gap: 30px;
+  gap: 25px;
   z-index: 100;
   color: white;
+}
+
+.nav-label {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: #4b5563; /* Gray headers like AKUN KARYAWAN */
+  margin: 15px 0 5px 15px;
 }
 
 .nav {
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  flex: 1;
+  gap: 4px;
 }
 
 .nav button {
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 14px 18px;
-  border-radius: 16px;
-  color: #60a5fa; /* Bright Blue Text */
+  padding: 12px 18px;
+  border-radius: 14px;
+  color: #e5e7eb; /* Light text */
   font-weight: 600;
   transition: all 0.2s ease;
   width: 100%;
@@ -522,13 +529,12 @@ textarea {
 
 .nav button:hover {
   background: rgba(255, 255, 255, 0.05);
-  transform: translateX(5px);
 }
 
 .nav button.active {
-  background: rgba(59, 130, 246, 0.15);
-  color: #93c5fd;
-  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+  background: #ffffff; /* White pill for active */
+  color: #111827; /* Dark text for active */
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
 }
 
 .sidebar .logo {
@@ -536,13 +542,14 @@ textarea {
 }
 
 .sidebar .muted {
-  color: rgba(255, 255, 255, 0.5);
+  color: #9ca3af;
 }
 
 .sidebar .user-chip {
-  background: rgba(255, 255, 255, 0.05);
+  background: rgba(255, 255, 255, 0.03);
   border: 1px solid rgba(255, 255, 255, 0.1);
   color: white;
+  padding: 15px;
 }
 
 .avatar {
