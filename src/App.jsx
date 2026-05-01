@@ -18,7 +18,7 @@ const DEFAULT_SETTINGS = { start: "08:00", tolerance: 10, end: "17:00", overtime
 function App() {
   const [currentUser, setCurrentUser] = useState(null);
   const [currentRole, setCurrentRole] = useState(null);
-  const [view, setView] = useState('login'); // login, staff, admin
+  const [view, setView] = useState('login'); 
   const [tab, setTab] = useState('home');
   const [records, setRecords] = useState([]);
   const [requests, setRequests] = useState([]);
@@ -28,42 +28,20 @@ function App() {
   const [loading, setLoading] = useState(false);
   const [search, setSearch] = useState('');
 
-  // Form States
   const [loginForm, setLoginForm] = useState({ username: '', password: '' });
-  const [attendanceForm, setAttendanceForm] = useState({
-    checkIn: '07:58',
-    checkOut: '',
-    project: '',
-    workType: 'Lapangan',
-    note: ''
-  });
+  const [attendanceForm, setAttendanceForm] = useState({ checkIn: '07:58', checkOut: '', project: '', workType: 'Lapangan', note: '' });
   const [photo, setPhoto] = useState('');
   const [location, setLocation] = useState(null);
   const [requestForm, setRequestForm] = useState({ type: 'Cuti', date: todayKey(), reason: '' });
 
-  // Fetch from Supabase
   const fetchData = async () => {
     setLoading(true);
     try {
-      const { data: attData, error: attError } = await supabase
-        .from('attendance')
-        .select('*')
-        .order('date', { ascending: false });
-      if (attError) throw attError;
+      const { data: attData } = await supabase.from('attendance').select('*').order('date', { ascending: false });
       setRecords(attData || []);
-
-      const { data: reqData, error: reqError } = await supabase
-        .from('requests')
-        .select('*')
-        .order('created_at', { ascending: false });
-      if (reqError) throw reqError;
+      const { data: reqData } = await supabase.from('requests').select('*').order('created_at', { ascending: false });
       setRequests(reqData || []);
-    } catch (error) {
-      console.error(error);
-      showToast("Gagal mengambil data.");
-    } finally {
-      setLoading(false);
-    }
+    } catch (error) { console.error(error); } finally { setLoading(false); }
   };
 
   useEffect(() => {
@@ -71,10 +49,7 @@ function App() {
     const attSub = supabase.channel('a').on('postgres_changes',{event:'*',schema:'public',table:'attendance'},()=>fetchData()).subscribe();
     const reqSub = supabase.channel('r').on('postgres_changes',{event:'*',schema:'public',table:'requests'},()=>fetchData()).subscribe();
     const timer = setInterval(() => {
-      setClock(new Date().toLocaleString("id-ID", { 
-        weekday: "long", day: "2-digit", month: "long", year: "numeric", 
-        hour: "2-digit", minute: "2-digit", second: "2-digit" 
-      }));
+      setClock(new Date().toLocaleString("id-ID", { weekday: "long", day: "2-digit", month: "long", year: "numeric", hour: "2-digit", minute: "2-digit", second: "2-digit" }));
     }, 1000);
     return () => { clearInterval(timer); supabase.removeChannel(attSub); supabase.removeChannel(reqSub); };
   }, []);
@@ -110,6 +85,7 @@ function App() {
     let status = "Hadir", statusClass = "hadir";
     if (lateMins > 0) { status = "Telat"; statusClass = "telat"; }
     if (overtimeMins > 0) { status = lateMins > 0 ? "Telat + Lembur" : "Lembur"; statusClass = "lembur"; }
+    if (record.check_in && !record.check_out) status += " (Aktif)";
     return { lateMins, overtimeMins, status, statusClass };
   };
 
@@ -129,8 +105,8 @@ function App() {
   };
 
   const updateRequestStatus = async (id, status) => {
-    const { error } = await supabase.from('requests').update({ status }).eq('id', id);
-    if (error) showToast("Gagal update status."); else { showToast(`Request ${status}!`); fetchData(); }
+    await supabase.from('requests').update({ status }).eq('id', id);
+    showToast(`Request ${status}!`); fetchData();
   };
 
   if (view === 'login') return (
@@ -247,7 +223,7 @@ function App() {
 
               {tab === 'payroll' && (
                 <div className="card">
-                  <div className="card-title"><h3>Rekapitulasi Gaji (Estimasi Bulan Ini)</h3></div>
+                  <div className="card-title"><h3>Rekapitulasi Gaji</h3></div>
                   <div className="data-table-wrap">
                     <table className="data-table">
                       <thead><tr><th>Nama</th><th>Hadir</th><th>Telat</th><th>Lembur</th><th>Gapok</th><th>Bonus</th><th>Total</th></tr></thead>
@@ -347,12 +323,50 @@ function App() {
                 </div>
               )}
               {tab === 'request' && (
+                <div className="grid two">
+                  <div className="card">
+                    <h3>Kirim Pengajuan</h3>
+                    <div className="form-stack">
+                      <div className="field"><label>Jenis pengajuan</label><select value={requestForm.type} onChange={e=>setRequestForm({...requestForm, type:e.target.value})}><option>Cuti</option><option>Izin</option><option>Sakit</option><option>Lembur</option></select></div>
+                      <div className="field"><label>Tanggal</label><input type="date" value={requestForm.date} onChange={e=>setRequestForm({...requestForm, date:e.target.value})}/></div>
+                      <div className="field"><label>Alasan/keterangan</label><textarea placeholder="Tuliskan alasan pengajuan" value={requestForm.reason} onChange={e=>setRequestForm({...requestForm, reason:e.target.value})}/></div>
+                      <button className="btn primary full" onClick={async()=>{await supabase.from('requests').insert([{...requestForm, staff_id:currentUser.id, staff_name:currentUser.name, status:'Menunggu'}]); setRequestForm({...requestForm, reason:''}); showToast("Berhasil terkirim!"); fetchData();}}>Kirim pengajuan</button>
+                    </div>
+                  </div>
+                  <div className="card">
+                    <h3>Pengajuan saya</h3>
+                    <div className="grid">
+                      {requests.filter(r=>r.staff_id===currentUser.id).map(r => (
+                        <div key={r.id} className="request-card" style={{padding:'16px'}}>
+                          <div className="row">
+                            <div><b>{r.type} • {fmtDate(r.date)}</b><br/><small className="muted">{r.reason || '-'}</small></div>
+                            <span className={`status-pill ${r.status==='Disetujui'?'hadir':r.status==='Ditolak'?'merah':'menunggu'}`}>{r.status}</span>
+                          </div>
+                        </div>
+                      ))}
+                      {requests.filter(r=>r.staff_id===currentUser.id).length === 0 && <div className="empty">Belum ada histori pengajuan.</div>}
+                    </div>
+                  </div>
+                </div>
+              )}
+              {tab === 'history' && (
                 <div className="card">
-                  <h3>Kirim Pengajuan</h3>
-                  <div className="form-stack">
-                    <div className="field"><label>Tipe</label><select value={requestForm.type} onChange={e=>setRequestForm({...requestForm, type:e.target.value})}><option>Cuti</option><option>Izin</option><option>Sakit</option></select></div>
-                    <div className="field"><label>Alasan</label><textarea value={requestForm.reason} onChange={e=>setRequestForm({...requestForm, reason:e.target.value})}/></div>
-                    <button className="btn primary" onClick={async()=>{await supabase.from('requests').insert([{...requestForm, staff_id:currentUser.id, staff_name:currentUser.name, status:'Menunggu'}]); setRequestForm({...requestForm, reason:''}); showToast("Terkirim!"); fetchData();}}>Kirim</button>
+                  <div className="data-table-wrap">
+                    <table className="data-table">
+                      <thead><tr><th>Tanggal</th><th>Masuk</th><th>Pulang</th><th>Status</th><th>Lembur</th></tr></thead>
+                      <tbody>
+                        {records.filter(r => r.staff_id === currentUser.id).map(r => {
+                          const calc = calcRecord(r);
+                          return (
+                            <tr key={r.id}>
+                              <td>{fmtDate(r.date)}</td><td>{r.check_in}</td><td>{r.check_out || '-'}</td>
+                              <td><span className={`status-pill ${calc.statusClass}`}>{calc.status}</span></td>
+                              <td>{durationLabel(calc.overtimeMins)}</td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
                   </div>
                 </div>
               )}
