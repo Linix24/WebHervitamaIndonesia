@@ -243,7 +243,7 @@ function App() {
 
         <main className="main">
           <div className="topbar">
-            <div><h2>{tab==='monitor'?'Monitoring Online':tab==='payroll'?'Rekap Payroll':tab==='stafflist'?'Daftar Staff':tab.charAt(0).toUpperCase()+tab.slice(1)}</h2><small>{clock}</small></div>
+            <div><h2>{tab==='monitor'?'Monitoring Online':tab==='payroll'?'Rekap Payroll':tab==='stafflist'?'Daftar Staff':tab==='settings'?'Aturan Absensi':tab.charAt(0).toUpperCase()+tab.slice(1)}</h2><small>{clock}</small></div>
             <div className="live-badge"><span className={loading?"pulse warning":"pulse"}></span> {loading?"Syncing...":"Live Cloud"}</div>
           </div>
 
@@ -358,6 +358,46 @@ function App() {
                         ))}
                       </tbody>
                     </table>
+                  </div>
+                </div>
+              )}
+
+              {tab === 'settings' && (
+                <div className="grid two">
+                  <div className="card">
+                    <div className="card-title">
+                      <div><h3>Aturan jam kerja</h3><p>Aturan ini dipakai untuk menghitung status otomatis.</p></div>
+                    </div>
+                    <div className="form-stack">
+                      <div className="grid two">
+                        <div className="field"><label>Jam masuk</label><input type="time" value={settings.start} onChange={e=>setSettings({...settings, start:e.target.value})}/></div>
+                        <div className="field"><label>Toleransi telat (menit)</label><input type="number" value={settings.tolerance} onChange={e=>setSettings({...settings, tolerance:e.target.value})}/></div>
+                      </div>
+                      <div className="grid two">
+                        <div className="field"><label>Jam pulang</label><input type="time" value={settings.end} onChange={e=>setSettings({...settings, end:e.target.value})}/></div>
+                        <div className="field"><label>Lembur otomatis setelah</label><input type="time" value={settings.overtimeAfter} onChange={e=>setSettings({...settings, overtimeAfter:e.target.value})}/></div>
+                      </div>
+                      <button className="btn primary full" onClick={()=>showToast("Aturan demo berhasil diperbarui!")}>Simpan aturan demo</button>
+                    </div>
+                  </div>
+                  <div className="card">
+                    <div className="card-title">
+                      <div><h3>Validasi prototype</h3><p>Poin yang bisa ditunjukkan saat demo TA.</p></div>
+                    </div>
+                    <div className="timeline">
+                      <div className="timeline-item">
+                        <div className="timeline-dot">1</div>
+                        <div className="timeline-copy"><b>Staff login personal</b><span>Setiap staff memakai akun berbeda seperti HI-001, HI-002, dst.</span></div>
+                      </div>
+                      <div className="timeline-item">
+                        <div className="timeline-dot">2</div>
+                        <div className="timeline-copy"><b>Input online terstandar</b><span>Foto, waktu, lokasi, map, dan catatan masuk dengan format seragam.</span></div>
+                      </div>
+                      <div className="timeline-item">
+                        <div className="timeline-dot">3</div>
+                        <div className="timeline-copy"><b>Monitoring HR</b><span>HR melihat status hadir/telat/lembur dan approval tanpa rekap manual.</span></div>
+                      </div>
+                    </div>
                   </div>
                 </div>
               )}
