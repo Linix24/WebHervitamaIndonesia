@@ -3,7 +3,7 @@ import {
   Home, Camera, ClipboardList, History, Users, 
   Activity, Settings, LogOut, CheckCircle, Clock, 
   MapPin, AlertCircle, Search, Filter, MoreHorizontal,
-  ChevronDown, Plus, Trash2, Send, DollarSign, CheckSquare, Upload
+  ChevronDown, Plus, Trash2, Send, DollarSign, CheckSquare, Upload, Image
 } from 'lucide-react';
 import { STAFF, ADMIN, DIVISIONS, LOCATIONS } from './data';
 import { 
@@ -28,7 +28,8 @@ function App() {
   const [loading, setLoading] = useState(false);
   const [search, setSearch] = useState('');
   
-  const fileInputRef = useRef(null);
+  const camInputRef = useRef(null);
+  const galleryInputRef = useRef(null);
 
   const [loginForm, setLoginForm] = useState({ username: '', password: '' });
   const [attendanceForm, setAttendanceForm] = useState({ checkIn: '07:58', checkOut: '', project: '', workType: 'Lapangan', note: '' });
@@ -81,7 +82,7 @@ function App() {
       const reader = new FileReader();
       reader.onloadend = () => {
         setPhoto(reader.result);
-        showToast("Foto berhasil diambil!");
+        showToast("Foto berhasil dimuat!");
       };
       reader.readAsDataURL(file);
     }
@@ -336,8 +337,12 @@ function App() {
                       <div className="photo-box">
                         {photo?<img src={photo}/>:<div className="photo-placeholder">Ambil Foto</div>}
                       </div>
-                      <input type="file" accept="image/*" capture="environment" style={{display:'none'}} ref={fileInputRef} onChange={handleFileChange} />
-                      <button className="btn soft full" style={{marginTop:'10px'}} onClick={()=>fileInputRef.current.click()}><Camera size={16}/> Ambil / Pilih Foto</button>
+                      <input type="file" accept="image/*" capture="environment" style={{display:'none'}} ref={camInputRef} onChange={handleFileChange} />
+                      <input type="file" accept="image/*" style={{display:'none'}} ref={galleryInputRef} onChange={handleFileChange} />
+                      <div className="btn-row" style={{marginTop:'12px'}}>
+                        <button className="btn soft" style={{flex:1}} onClick={()=>camInputRef.current.click()}><Camera size={16}/> Kamera</button>
+                        <button className="btn ghost" style={{flex:1}} onClick={()=>galleryInputRef.current.click()}><Image size={16}/> Galeri</button>
+                      </div>
                     </div>
                     <div className="card"><h3>GPS Lokasi</h3><div className="location-preview">{location?<b>{location.address}</b>:'Belum terdeteksi'}</div><button className="btn soft full" style={{marginTop:'10px'}} onClick={()=>setLocation(makeDemoLocation(currentUser.no))}>Simulasikan Lokasi</button></div>
                   </div>
