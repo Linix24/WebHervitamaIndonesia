@@ -27,6 +27,7 @@ function App() {
   const [clock, setClock] = useState('');
   const [loading, setLoading] = useState(false);
   const [search, setSearch] = useState('');
+  const [statusFilter, setStatusFilter] = useState('Semua status');
   const [detecting, setDetecting] = useState(false);
   
   const camInputRef = useRef(null);
@@ -90,16 +91,11 @@ function App() {
   };
 
   const detectLocation = () => {
-    if (!navigator.geolocation) {
-      showToast("Browser tidak mendukung GPS.");
-      return;
-    }
-    setDetecting(true);
-    showToast("Sedang mendeteksi posisi...");
+    if (!navigator.geolocation) { showToast("Browser tidak mendukung GPS."); return; }
+    setDetecting(true); showToast("Sedang mendeteksi posisi...");
     navigator.geolocation.getCurrentPosition(async (pos) => {
       const { latitude, longitude } = pos.coords;
       try {
-        // Reverse Geocoding using Nominatim (OpenStreetMap)
         const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}&zoom=18&addressdetails=1`);
         const data = await res.json();
         const address = data.display_name || `${latitude}, ${longitude}`;
@@ -108,18 +104,12 @@ function App() {
       } catch (e) {
         setLocation({ lat: latitude.toFixed(6), lng: longitude.toFixed(6), address: `Posisi: ${latitude}, ${longitude}` });
         showToast("Lokasi didapat (tanpa alamat).");
-      } finally {
-        setDetecting(false);
-      }
-    }, (err) => {
-      console.error(err);
-      showToast("Gagal akses GPS. Pastikan izin lokasi aktif.");
-      setDetecting(false);
-    }, { enableHighAccuracy: true });
+      } finally { setDetecting(false); }
+    }, (err) => { showToast("Gagal akses GPS."); setDetecting(false); }, { enableHighAccuracy: true });
   };
 
   const calcRecord = (record) => {
-    if (!record) return { status: 'Belum Absen', statusClass: 'menunggu', lateMins: 0, overtimeMins: 0 };
+    if (!record) return { status: 'Belum absen', statusClass: 'menunggu', lateMins: 0, overtimeMins: 0 };
     const start = minutesOf(settings.start) + Number(settings.tolerance || 0);
     const end = minutesOf(settings.end);
     const overtimeStart = minutesOf(settings.overtimeAfter);
@@ -127,10 +117,9 @@ function App() {
     const cout = minutesOf(record.check_out);
     const lateMins = cin !== null && cin > start ? cin - start : 0;
     const overtimeMins = cout !== null && cout >= overtimeStart ? Math.max(0, cout - end) : 0;
-    let status = "Hadir", statusClass = "hadir";
+    let status = "Sudah absen", statusClass = "hadir";
     if (lateMins > 0) { status = "Telat"; statusClass = "telat"; }
-    if (overtimeMins > 0) { status = lateMins > 0 ? "Telat + Lembur" : "Lembur"; statusClass = "lembur"; }
-    if (record.check_in && !record.check_out) status += " (Aktif)";
+    if (overtimeMins > 0) { status = "Lembur"; statusClass = "lembur"; }
     return { lateMins, overtimeMins, status, statusClass };
   };
 
@@ -239,14 +228,31 @@ function App() {
               {tab === 'monitor' && (
                 <div className="card">
                   <div className="table-tools">
-                    <div className="left"><div className="search"><Search size={14}/><input placeholder="Cari nama / username..." onChange={e=>setSearch(e.target.value)}/></div></div>
+                    <div className="left" style={{display:'flex', gap:'10px'}}>
+                      <div className="search"><Search size={14}/><input placeholder="Cari nama / username..." value={search} onChange={e=>setSearch(e.target.value)}/></div>
+                      <select style={{width:'auto', minWidth:'180px'}} value={statusFilter} onChange={e=>setStatusFilter(e.target.value)}>
+                        <option>Semua status</option>
+                        <option>Sudah absen</option>
+                        <option>Telat</option>
+                        <option>Lembur</option>
+                        <option>Belum absen</option>
+                      </select>
+                    </div>
                     <div className="right"><button className="btn primary"><Plus size={14}/> Tambah absen manual</button></div>
                   </div>
                   <div className="data-table-wrap">
                     <table className="data-table">
                       <thead><tr><th>Karyawan</th><th>Masuk</th><th>Pulang</th><th>Status</th><th>Telat</th><th>Lembur</th><th>Lokasi</th><th>Aksi</th></tr></thead>
                       <tbody>
-                        {STAFF.filter(s=>s.name.toLowerCase().includes(search.toLowerCase()) || s.username.toLowerCase().includes(search.toLowerCase())).map(s => {
+                        {STAFF.filter(s => {
+                          const matchesSearch = s.name.toLowerCase().includes(search.toLowerCase()) || s.username.toLowerCase().includes(search.toLowerCase());
+                          const r = records.find(rec => rec.staff_id === s.id && rec.date === todayKey());
+                          const c = calcRecord(r);
+                          if (statusFilter === 'Semua status') return matchesSearch;
+                          if (statusFilter === 'Belum absen') return matchesSearch && !r;
+                          if (statusFilter === 'Sudah absen') return matchesSearch && r && (c.status === 'Sudah absen' || c.status === 'Telat' || c.status === 'Lembur');
+                          return matchesSearch && c.status === statusFilter;
+                        }).map(s => {
                           const r = records.find(rec=>rec.staff_id===s.id && rec.date===todayKey());
                           const c = calcRecord(r);
                           return (
