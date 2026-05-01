@@ -319,7 +319,7 @@ function App() {
                             <option>Semua status</option><option>Sudah absen</option><option>Telat</option><option>Lembur</option><option>Belum absen</option>
                           </select>
                         </div>
-                        <div className="right"><button className="btn primary" onClick={()=>setShowManualModal(true)}><Plus size={14}/> Tambah manual</button></div>
+                        <div className="right"><button className="btn primary" onClick={()=>setShowManualModal(true)}><Plus size={14}/> Tambah absen manual</button></div>
                       </div>
                       <div className="data-table-wrap">
                         <table className="data-table">
@@ -330,7 +330,8 @@ function App() {
                               const c = calcRecord(r);
                               return (
                                 <tr key={s.id}>
-                                  <td><b>{s.name}</b></td><td>{r?.check_in||'-'}</td><td>{r?.check_out||'-'}</td>
+                                  <td><div className="employee-cell"><div className="mini-avatar">{initials(s.name)}</div><div><b>{s.name}</b><br/><small className="muted">{s.division}</small></div></div></td>
+                                  <td>{r?.check_in||'-'}</td><td>{r?.check_out||'-'}</td>
                                   <td><span className={`status-pill ${c.statusClass}`}>{c.status}</span></td>
                                   <td>{durationLabel(c.lateMins)}</td><td>{durationLabel(c.overtimeMins)}</td>
                                   <td><button className="btn ghost small" onClick={()=>setSelectedStaff(s)}>Detail</button></td>
@@ -343,47 +344,109 @@ function App() {
                     </div>
                   )}
                   {tab === 'payroll' && (
-                    <div className="card"><h3>Rekap Gaji</h3><div className="data-table-wrap"><table className="data-table"><thead><tr><th>Nama</th><th>Hadir</th><th>Lembur</th><th>Total</th></tr></thead><tbody>{staffList.map(s=>(<tr key={s.id}><td>{s.name}</td><td>22</td><td>5j</td><td><b>Rp 5.750.000</b></td></tr>))}</tbody></table></div></div>
+                    <div className="card"><h3>Rekap Gaji</h3><div className="data-table-wrap"><table className="data-table"><thead><tr><th>Nama</th><th>Hadir</th><th>Telat</th><th>Lembur</th><th>Total</th></tr></thead><tbody>{staffList.map(s=>(<tr key={s.id}><td>{s.name}</td><td>22</td><td>0m</td><td>5j</td><td><b>Rp 5.750.000</b></td></tr>))}</tbody></table></div></div>
                   )}
                   {tab === 'approval' && (
                     <div className="grid">
-                      {requests.map(r=>(<div key={r.id} className="card"><div className="card-title"><div><b>{r.staff_name}</b><br/><small>{r.type}</small></div><span className={`status-pill ${r.status==='Disetujui'?'hadir':'menunggu'}`}>{r.status}</span></div><p>{r.reason}</p>{r.status==='Menunggu' && <div className="btn-row"><button className="btn success" onClick={()=>updateRequestStatus(r.id,'Disetujui')}>Setujui</button></div>}</div>))}
+                      {requests.map(r=>(<div key={r.id} className="card"><div className="card-title"><div><b>{r.staff_name}</b><br/><small>{r.type} • {fmtDate(r.date)}</small></div><span className={`status-pill ${r.status==='Disetujui'?'hadir':r.status==='Ditolak'?'merah':'menunggu'}`}>{r.status}</span></div><p>{r.reason}</p>{r.status==='Menunggu' && <div className="btn-row"><button className="btn success" onClick={()=>updateRequestStatus(r.id,'Disetujui')}>Setujui</button><button className="btn danger" onClick={()=>updateRequestStatus(r.id,'Ditolak')}>Tolak</button></div>}</div>))}
+                      {requests.length === 0 && <div className="empty">Tidak ada pengajuan.</div>}
                     </div>
                   )}
                   {tab === 'stafflist' && (
                     <div className="card">
-                      <div className="table-tools"><div className="right"><button className="btn primary" onClick={()=>setShowAddStaffModal(true)}><UserPlus size={16}/> Tambah Staff</button></div></div>
-                      <div className="data-table-wrap"><table className="data-table"><thead><tr><th>ID</th><th>Nama</th><th>Divisi</th><th>Aksi</th></tr></thead><tbody>{staffList.map(s=>(<tr key={s.id}><td>{s.id}</td><td>{s.name}</td><td>{s.division}</td><td><button className="btn danger small" onClick={()=>handleDeleteStaff(s.id)}><Trash2 size={14}/></button></td></tr>))}</tbody></table></div>
+                      <div className="table-tools">
+                        <div className="left"><div className="search"><Search size={14}/><input placeholder="Cari karyawan..." value={search} onChange={e=>setSearch(e.target.value)}/></div></div>
+                        <div className="right"><button className="btn primary" onClick={()=>setShowAddStaffModal(true)}><UserPlus size={16}/> Tambah Staff Baru</button></div>
+                      </div>
+                      <div className="data-table-wrap"><table className="data-table"><thead><tr><th>ID</th><th>Nama</th><th>Divisi</th><th>Username</th><th>Aksi</th></tr></thead><tbody>{staffList.filter(s=>s.name.toLowerCase().includes(search.toLowerCase())).map(s=>(<tr key={s.id}><td>{s.id}</td><td><b>{s.name}</b></td><td>{s.division}</td><td>{s.username}</td><td><div className="btn-row"><button className="btn ghost small" onClick={()=>setSelectedStaff(s)}>Detail</button><button className="btn danger small" onClick={()=>handleDeleteStaff(s.id)}><Trash2 size={14}/></button></div></td></tr>))}</tbody></table></div>
                     </div>
                   )}
                   {tab === 'settings' && (
-                    <div className="card"><h3>Aturan</h3><div className="form-stack"><div className="field"><label>Jam Masuk</label><input type="time" value={settings.start} onChange={e=>setSettings({...settings,start:e.target.value})}/></div><button className="btn primary" onClick={()=>showToast("Disimpan!")}>Simpan</button></div></div>
+                    <div className="grid two">
+                      <div className="card">
+                        <h3>Aturan Jam Kerja</h3>
+                        <div className="form-stack">
+                          <div className="grid two">
+                            <div className="field"><label>Jam masuk</label><input type="time" value={settings.start} onChange={e=>setSettings({...settings,start:e.target.value})}/></div>
+                            <div className="field"><label>Toleransi (menit)</label><input type="number" value={settings.tolerance} onChange={e=>setSettings({...settings,tolerance:e.target.value})}/></div>
+                          </div>
+                          <div className="grid two">
+                            <div className="field"><label>Jam pulang</label><input type="time" value={settings.end} onChange={e=>setSettings({...settings,end:e.target.value})}/></div>
+                            <div className="field"><label>Lembur otomatis</label><input type="time" value={settings.overtimeAfter} onChange={e=>setSettings({...settings,overtimeAfter:e.target.value})}/></div>
+                          </div>
+                          <button className="btn primary full" onClick={()=>showToast("Aturan disimpan!")}>Simpan Aturan</button>
+                        </div>
+                      </div>
+                      <div className="card">
+                        <h3>Validasi Prototype</h3>
+                        <div className="timeline">
+                          <div className="timeline-item"><div className="timeline-dot">1</div><div className="timeline-copy"><b>Staff login personal</b><span>HI-001, HI-002, dst.</span></div></div>
+                          <div className="timeline-item"><div className="timeline-dot">2</div><div className="timeline-copy"><b>Input online terstandar</b><span>Foto & GPS real-time.</span></div></div>
+                          <div className="timeline-item"><div className="timeline-dot">3</div><div className="timeline-copy"><b>Monitoring HR</b><span>Approval tanpa rekap manual.</span></div></div>
+                        </div>
+                      </div>
+                    </div>
                   )}
                 </>
               ) : (
                 <>
                   {tab === 'home' && (
-                    <div className="grid kpi">
-                      {(() => {
-                        const rec = records.find(r => r.staff_id === currentUser.id && r.date === todayKey());
-                        const calc = calcRecord(rec);
-                        return (
-                          <>
-                            <div className="card kpi-card"><div className="kpi-icon"><Activity /></div><div className="kpi-value">{calc.status}</div><div className="kpi-label">Status</div></div>
-                            <div className="card kpi-card"><div className="kpi-icon"><Clock /></div><div className="kpi-value">{rec?.check_in || "-"}</div><div className="kpi-label">Masuk</div></div>
-                          </>
-                        );
-                      })()}
-                    </div>
+                    <>
+                      <div className="grid kpi">
+                        {(() => {
+                          const rec = records.find(r => r.staff_id === currentUser.id && r.date === todayKey());
+                          const calc = calcRecord(rec);
+                          return (
+                            <>
+                              <div className="card kpi-card"><div className="kpi-icon"><Activity /></div><div className="kpi-value">{calc.status}</div><div className="kpi-label">Status hari ini</div></div>
+                              <div className="card kpi-card"><div className="kpi-icon"><Clock /></div><div className="kpi-value">{rec?.check_in || "-"}</div><div className="kpi-label">Jam Masuk</div></div>
+                              <div className="card kpi-card"><div className="kpi-icon"><LogOut /></div><div className="kpi-value">{rec?.check_out || "-"}</div><div className="kpi-label">Jam Pulang</div></div>
+                              <div className="card kpi-card"><div className="kpi-icon"><AlertCircle /></div><div className="kpi-value">{durationLabel(calc.overtimeMins)}</div><div className="kpi-label">Lembur</div></div>
+                            </>
+                          );
+                        })()}
+                      </div>
+                      <div className="card"><h3>Aktivitas Terakhir</h3><div className="timeline">{records.filter(r=>r.staff_id===currentUser.id).slice(0,3).map(r=>(<div key={r.id} className="timeline-item"><div className="timeline-dot"><CheckCircle size={16}/></div><div className="timeline-copy"><b>{fmtDate(r.date)}</b><span>{r.check_in} - {r.check_out||'Aktif'}</span></div></div>))}</div></div>
+                    </>
                   )}
                   {tab === 'attendance' && (
-                    <div className="card"><h3>Absensi</h3><div className="form-stack"><button className="btn primary full" onClick={()=>saveAttendance('in')}>Absen Masuk</button></div></div>
+                    <div className="grid two">
+                      <div className="card">
+                        <h3>Absensi Online</h3>
+                        <div className="form-stack">
+                          <div className="grid two">
+                            <div className="field"><label>Masuk</label><input type="time" value={attendanceForm.checkIn} onChange={e=>setAttendanceForm({...attendanceForm, checkIn:e.target.value})}/></div>
+                            <div className="field"><label>Pulang</label><input type="time" value={attendanceForm.checkOut} onChange={e=>setAttendanceForm({...attendanceForm, checkOut:e.target.value})}/></div>
+                          </div>
+                          <div className="field"><label>Project</label><input value={attendanceForm.project} onChange={e=>setAttendanceForm({...attendanceForm, project:e.target.value})}/></div>
+                          <div className="field"><label>Catatan</label><textarea value={attendanceForm.note} onChange={e=>setAttendanceForm({...attendanceForm, note:e.target.value})}/></div>
+                          <div className="btn-row"><button className="btn primary" onClick={()=>saveAttendance('in')}>Absen Masuk</button><button className="btn warning" onClick={()=>saveAttendance('out')}>Absen Pulang</button></div>
+                        </div>
+                      </div>
+                      <div className="grid">
+                        <div className="card">
+                          <h3>Bukti Foto</h3>
+                          <div className="photo-box">{photo?<img src={photo}/>:<div className="photo-placeholder">Ambil Foto</div>}</div>
+                          <input type="file" accept="image/*" capture="environment" style={{display:'none'}} ref={camInputRef} onChange={handleFileChange} />
+                          <input type="file" accept="image/*" style={{display:'none'}} ref={galleryInputRef} onChange={handleFileChange} />
+                          <div className="btn-row" style={{marginTop:'12px'}}><button className="btn soft" style={{flex:1}} onClick={()=>camInputRef.current.click()}><Camera size={16}/> Kamera</button><button className="btn ghost" style={{flex:1}} onClick={()=>galleryInputRef.current.click()}><Image size={16}/> Galeri</button></div>
+                        </div>
+                        <div className="card">
+                          <h3>GPS Lokasi</h3>
+                          <div className="location-preview">{detecting ? 'Mencari...' : (location ? location.address : 'Belum terdeteksi')}</div>
+                          <button className="btn soft full" onClick={detectLocation} disabled={detecting}><Navigation size={16}/> Deteksi Lokasi</button>
+                        </div>
+                      </div>
+                    </div>
                   )}
                   {tab === 'request' && (
-                    <div className="card"><h3>Pengajuan</h3><button className="btn primary full" onClick={()=>showToast("Kirim!")}>Kirim</button></div>
+                    <div className="grid two">
+                      <div className="card"><h3>Kirim Pengajuan</h3><div className="form-stack"><div className="field"><label>Tipe</label><select value={requestForm.type} onChange={e=>setRequestForm({...requestForm, type:e.target.value})}><option>Cuti</option><option>Izin</option><option>Sakit</option></select></div><div className="field"><label>Tanggal</label><input type="date" value={requestForm.date} onChange={e=>setRequestForm({...requestForm, date:e.target.value})}/></div><div className="field"><label>Alasan</label><textarea value={requestForm.reason} onChange={e=>setRequestForm({...requestForm, reason:e.target.value})}/></div><button className="btn primary full" onClick={async()=>{await supabase.from('requests').insert([{...requestForm, staff_id:currentUser.id, staff_name:currentUser.name, status:'Menunggu'}]); showToast("Terkirim!"); fetchData();}}>Kirim</button></div></div>
+                      <div className="card"><h3>Riwayat Pengajuan</h3>{requests.filter(r=>r.staff_id===currentUser.id).map(r=>(<div key={r.id} style={{marginBottom:'10px'}}><b>{r.type}</b> ({r.status})</div>))}</div>
+                    </div>
                   )}
                   {tab === 'history' && (
-                    <div className="card"><h3>Riwayat</h3>{records.filter(r=>r.staff_id===currentUser.id).map(r=><div key={r.id}>{r.date} - {r.check_in}</div>)}</div>
+                    <div className="card"><div className="data-table-wrap"><table className="data-table"><thead><tr><th>Tanggal</th><th>Masuk</th><th>Pulang</th><th>Status</th></tr></thead><tbody>{records.filter(r=>r.staff_id===currentUser.id).map(r=><tr key={r.id}><td>{fmtDate(r.date)}</td><td>{r.check_in}</td><td>{r.check_out||'-'}</td><td>{calcRecord(r).status}</td></tr>)}</tbody></table></div></div>
                   )}
                 </>
               )}
@@ -392,24 +455,43 @@ function App() {
         </div>
       )}
 
-      {/* Modals with animate-in class */}
+      {/* Modals are FIXED and RESTORED here */}
       {showManualModal && (
-        <div className="modal-backdrop"><div className="modal animate-in"><h3>Manual Absen</h3><button onClick={()=>setShowManualModal(false)}>Tutup</button></div></div>
+        <div className="modal-backdrop"><div className="modal animate-in" style={{maxWidth:'900px'}}>
+          <div className="modal-head"><h3>Tambah Absen Manual</h3><button className="btn ghost small" onClick={()=>setShowManualModal(false)}><X size={18}/></button></div>
+          <div className="modal-body"><div className="grid two"><div className="form-stack">
+            <div className="field"><label>Pilih Karyawan</label><select value={manualForm.staffId} onChange={e=>setManualForm({...manualForm, staffId:e.target.value})}><option value="">-- Pilih --</option>{staffList.map(s=><option key={s.id} value={s.id}>{s.name}</option>)}</select></div>
+            <div className="field"><label>Tanggal</label><input type="date" value={manualForm.date} onChange={e=>setManualForm({...manualForm, date:e.target.value})}/></div>
+            <div className="grid two"><div className="field"><label>Masuk</label><input type="time" value={manualForm.checkIn} onChange={e=>setManualForm({...manualForm, checkIn:e.target.value})}/></div><div className="field"><label>Pulang</label><input type="time" value={manualForm.checkOut} onChange={e=>setManualForm({...manualForm, checkOut:e.target.value})}/></div></div>
+            <div className="card" style={{background:'#f8faff'}}><div className="location-preview">{detecting?'Mencari...':(manualLocation?manualLocation.address:'Belum ada')}</div><button className="btn soft full" onClick={()=>detectLocation('manual')}><Navigation size={16}/> Deteksi</button></div>
+            <button className="btn primary full" onClick={handleManualSubmit}>Simpan Absen</button>
+          </div><div className="card"><h3>Foto</h3><div className="photo-box">{manualPhoto?<img src={manualPhoto}/>:<div className="photo-placeholder">No Photo</div>}</div><div className="btn-row"><button className="btn soft" onClick={()=>manualCamRef.current.click()}>Kamera</button></div><input type="file" capture="environment" style={{display:'none'}} ref={manualCamRef} onChange={e=>handleFileChange(e,'manual')}/></div></div></div>
+        </div></div>
       )}
       {showAddStaffModal && (
-        <div className="modal-backdrop"><div className="modal animate-in"><h3>Tambah Staff</h3><button onClick={()=>setShowAddStaffModal(false)}>Tutup</button></div></div>
+        <div className="modal-backdrop"><div className="modal animate-in" style={{maxWidth:'500px'}}>
+          <div className="modal-head"><h3>Tambah Staff Baru</h3><button className="btn ghost small" onClick={()=>setShowAddStaffModal(false)}><X size={18}/></button></div>
+          <div className="modal-body"><div className="form-stack">
+            <div className="field"><label>Nama Lengkap</label><input value={newStaffForm.name} onChange={e=>setNewStaffForm({...newStaffForm, name:e.target.value})}/></div>
+            <div className="field"><label>Username</label><input value={newStaffForm.username} onChange={e=>setNewStaffForm({...newStaffForm, username:e.target.value.toUpperCase()})}/></div>
+            <div className="field"><label>Password</label><input type="password" value={newStaffForm.password} onChange={e=>setNewStaffForm({...newStaffForm, password:e.target.value})}/></div>
+            <div className="field"><label>Divisi</label><select value={newStaffForm.division} onChange={e=>setNewStaffForm({...newStaffForm, division:e.target.value})}>{DIVISIONS.map(d=><option key={d} value={d}>{d}</option>)}</select></div>
+            <button className="btn primary full" onClick={handleAddStaff}>Daftarkan</button>
+          </div></div>
+        </div></div>
       )}
       {selectedStaff && (
-        <div className="modal-backdrop">
-          <div className="modal animate-in">
-            <h3>{selectedStaff.name}</h3>
-            {(() => {
-              const stats = getStaffStats(selectedStaff.id);
-              return <div>Hadir: {stats.present} | Lembur: {stats.overtime}</div>
-            })()}
-            <button onClick={()=>setSelectedStaff(null)}>Tutup</button>
+        <div className="modal-backdrop"><div className="modal animate-in" style={{maxWidth:'600px'}}>
+          <div className="modal-head"><h3>Profil {selectedStaff.name}</h3><button className="btn ghost small" onClick={()=>setSelectedStaff(null)}><X size={18}/></button></div>
+          <div className="modal-body">
+            <div className="user-chip" style={{background:'#f8faff', padding:'20px', borderRadius:'22px'}}><div className="avatar">{initials(selectedStaff.name)}</div><div><b>{selectedStaff.name}</b><br/><small>{selectedStaff.username}</small></div></div>
+            <h4 style={{marginTop:'20px'}}>Rekap Kehadiran</h4>
+            <div className="grid two">
+              {(() => { const s = getStaffStats(selectedStaff.id); return (<><div className="card"><b>{s.present}</b><small> Hadir</small></div><div className="card"><b>{s.overtime}</b><small> Lembur</small></div></>); })()}
+            </div>
+            <button className="btn ghost full" onClick={()=>setSelectedStaff(null)}>Tutup</button>
           </div>
-        </div>
+        </div></div>
       )}
       {toast.show && <div className="toast show animate-in">{toast.message}</div>}
     </div>
