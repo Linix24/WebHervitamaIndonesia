@@ -3,7 +3,7 @@ import {
   Home, Camera, ClipboardList, History, Users, 
   Activity, Settings, LogOut, CheckCircle, Clock, 
   MapPin, AlertCircle, Search, Filter, MoreHorizontal,
-  ChevronDown, Plus, Trash2, Send
+  ChevronDown, Plus, Trash2, Send, DollarSign, CheckSquare
 } from 'lucide-react';
 import { STAFF, ADMIN, DIVISIONS, LOCATIONS } from './data';
 import { 
@@ -26,6 +26,7 @@ function App() {
   const [toast, setToast] = useState({ show: false, message: '' });
   const [clock, setClock] = useState('');
   const [loading, setLoading] = useState(false);
+  const [search, setSearch] = useState('');
 
   // Form States
   const [loginForm, setLoginForm] = useState({ username: '', password: '' });
@@ -40,7 +41,7 @@ function App() {
   const [location, setLocation] = useState(null);
   const [requestForm, setRequestForm] = useState({ type: 'Cuti', date: todayKey(), reason: '' });
 
-  // Load Data from Supabase
+  // Fetch from Supabase
   const fetchData = async () => {
     setLoading(true);
     try {
@@ -48,7 +49,6 @@ function App() {
         .from('attendance')
         .select('*')
         .order('date', { ascending: false });
-      
       if (attError) throw attError;
       setRecords(attData || []);
 
@@ -56,12 +56,11 @@ function App() {
         .from('requests')
         .select('*')
         .order('created_at', { ascending: false });
-      
       if (reqError) throw reqError;
       setRequests(reqData || []);
     } catch (error) {
-      console.error("Error fetching data:", error);
-      showToast("Gagal mengambil data dari database.");
+      console.error(error);
+      showToast("Gagal mengambil data.");
     } finally {
       setLoading(false);
     }
@@ -69,30 +68,15 @@ function App() {
 
   useEffect(() => {
     fetchData();
-
-    // Setup real-time subscription
-    const attendanceSub = supabase
-      .channel('attendance_changes')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'attendance' }, () => fetchData())
-      .subscribe();
-
-    const requestSub = supabase
-      .channel('request_changes')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'requests' }, () => fetchData())
-      .subscribe();
-
+    const attSub = supabase.channel('a').on('postgres_changes',{event:'*',schema:'public',table:'attendance'},()=>fetchData()).subscribe();
+    const reqSub = supabase.channel('r').on('postgres_changes',{event:'*',schema:'public',table:'requests'},()=>fetchData()).subscribe();
     const timer = setInterval(() => {
       setClock(new Date().toLocaleString("id-ID", { 
         weekday: "long", day: "2-digit", month: "long", year: "numeric", 
         hour: "2-digit", minute: "2-digit", second: "2-digit" 
       }));
     }, 1000);
-
-    return () => {
-      clearInterval(timer);
-      supabase.removeChannel(attendanceSub);
-      supabase.removeChannel(requestSub);
-    };
+    return () => { clearInterval(timer); supabase.removeChannel(attSub); supabase.removeChannel(reqSub); };
   }, []);
 
   const showToast = (message) => {
@@ -101,40 +85,21 @@ function App() {
   };
 
   const handleLogin = (u, p) => {
-    const username = u || loginForm.username.trim().toUpperCase();
-    const password = p || loginForm.password.trim();
-
+    const username = (u || loginForm.username).trim().toUpperCase();
+    const password = (p || loginForm.password).trim();
     if (username === ADMIN.username && password === ADMIN.password) {
-      setCurrentUser(ADMIN);
-      setCurrentRole('admin');
-      setView('admin');
-      setTab('home');
-      showToast("Login admin berhasil.");
+      setCurrentUser(ADMIN); setCurrentRole('admin'); setView('admin'); setTab('home');
       return;
     }
-
     const staff = STAFF.find(s => s.username === username && s.password === password);
     if (staff) {
-      setCurrentUser(staff);
-      setCurrentRole('staff');
-      setView('staff');
-      setTab('home');
+      setCurrentUser(staff); setCurrentRole('staff'); setView('staff'); setTab('home');
       setAttendanceForm(prev => ({ ...prev, project: staff.defaultLocation }));
-      showToast(`Selamat datang, ${staff.name}.`);
-      return;
-    }
-    showToast("Username atau password salah.");
-  };
-
-  const handleLogout = () => {
-    setCurrentUser(null);
-    setCurrentRole(null);
-    setView('login');
-    setLoginForm({ username: '', password: '' });
+    } else showToast("Akun tidak ditemukan.");
   };
 
   const calcRecord = (record) => {
-    if (!record) return { status: 'Belum Absen', statusClass: 'menunggu' };
+    if (!record) return { status: 'Belum Absen', statusClass: 'menunggu', lateMins: 0, overtimeMins: 0 };
     const start = minutesOf(settings.start) + Number(settings.tolerance || 0);
     const end = minutesOf(settings.end);
     const overtimeStart = minutesOf(settings.overtimeAfter);
@@ -142,188 +107,202 @@ function App() {
     const cout = minutesOf(record.check_out);
     const lateMins = cin !== null && cin > start ? cin - start : 0;
     const overtimeMins = cout !== null && cout >= overtimeStart ? Math.max(0, cout - end) : 0;
-    
-    let status = "Hadir";
-    let statusClass = "hadir";
-    if (lateMins > 0 && overtimeMins > 0) { status = "Telat + Lembur"; statusClass = "lembur"; }
-    else if (overtimeMins > 0) { status = "Lembur"; statusClass = "lembur"; }
-    else if (lateMins > 0) { status = "Telat"; statusClass = "telat"; }
-    
-    if (record.check_in && !record.check_out) { status += " / Belum Pulang"; }
+    let status = "Hadir", statusClass = "hadir";
+    if (lateMins > 0) { status = "Telat"; statusClass = "telat"; }
+    if (overtimeMins > 0) { status = lateMins > 0 ? "Telat + Lembur" : "Lembur"; statusClass = "lembur"; }
     return { lateMins, overtimeMins, status, statusClass };
   };
 
   const saveAttendance = async (mode) => {
-    const checkIn = attendanceForm.checkIn || nowTime();
-    const checkOut = mode === 'out' ? (attendanceForm.checkOut || nowTime()) : (attendanceForm.checkOut || null);
-    
-    // Check if record exists for today
     const existing = records.find(r => r.staff_id === currentUser.id && r.date === todayKey());
-
+    const cin = attendanceForm.checkIn || nowTime();
+    const cout = mode === 'out' ? (attendanceForm.checkOut || nowTime()) : (existing?.check_out || null);
     const payload = {
-      staff_id: currentUser.id,
-      staff_name: currentUser.name,
-      date: todayKey(),
-      check_in: existing?.check_in || checkIn,
-      check_out: checkOut,
-      project: attendanceForm.project,
-      work_type: attendanceForm.workType,
-      note: attendanceForm.note,
-      photo: photo || makePhotoData(currentUser.name, checkIn, attendanceForm.project, initials),
-      lat: location?.lat || null,
-      lng: location?.lng || null,
-      address: location?.address || null,
-      updated_at: new Date().toISOString()
+      staff_id: currentUser.id, staff_name: currentUser.name, date: todayKey(),
+      check_in: existing?.check_in || cin, check_out: cout,
+      project: attendanceForm.project, work_type: attendanceForm.workType, note: attendanceForm.note,
+      photo: photo || makePhotoData(currentUser.name, cin, attendanceForm.project, initials),
+      lat: location?.lat, lng: location?.lng, address: location?.address
     };
-
-    try {
-      let error;
-      if (existing) {
-        ({ error } = await supabase
-          .from('attendance')
-          .update(payload)
-          .eq('id', existing.id));
-      } else {
-        ({ error } = await supabase
-          .from('attendance')
-          .insert([payload]));
-      }
-
-      if (error) throw error;
-      showToast(mode === 'in' ? "Absen masuk tersimpan ke database!" : "Absen pulang tersimpan ke database!");
-      fetchData();
-    } catch (error) {
-      console.error("Error saving attendance:", error);
-      showToast("Gagal menyimpan ke database.");
-    }
+    const { error } = existing ? await supabase.from('attendance').update(payload).eq('id', existing.id) : await supabase.from('attendance').insert([payload]);
+    if (error) showToast("Gagal menyimpan."); else { showToast("Data tersimpan!"); fetchData(); }
   };
 
-  const submitRequest = async () => {
-    const newReq = {
-      staff_id: currentUser.id,
-      staff_name: currentUser.name,
-      type: requestForm.type,
-      date: requestForm.date,
-      reason: requestForm.reason,
-      status: 'Menunggu'
-    };
-
-    try {
-      const { error } = await supabase.from('requests').insert([newReq]);
-      if (error) throw error;
-      setRequestForm({ type: 'Cuti', date: todayKey(), reason: '' });
-      showToast("Pengajuan terkirim ke database!");
-      fetchData();
-    } catch (error) {
-      console.error("Error saving request:", error);
-      showToast("Gagal mengirim pengajuan.");
-    }
+  const updateRequestStatus = async (id, status) => {
+    const { error } = await supabase.from('requests').update({ status }).eq('id', id);
+    if (error) showToast("Gagal update status."); else { showToast(`Request ${status}!`); fetchData(); }
   };
 
-  // Render Login
-  if (view === 'login') {
-    return (
-      <div className="login-layout">
-        <div className="hero-card">
-          <div className="hero-content">
-            <span className="pill">⚡ Supabase Connected</span>
-            <h1>Absensi online satu pintu untuk karyawan & HR.</h1>
-            <p>Sistem ini sekarang terhubung langsung ke database Supabase. Setiap absen yang dilakukan staff akan langsung muncul di panel HR secara real-time.</p>
-            <div className="hero-grid">
-              <div className="hero-mini"><b>{STAFF.length}</b><span>Akun staff aktif</span></div>
-              <div className="hero-mini"><b>Real-time</b><span>Koneksi Database</span></div>
-              <div className="hero-mini"><b>Secure</b><span>Auth & RLS Ready</span></div>
-            </div>
+  if (view === 'login') return (
+    <div className="login-layout">
+      <div className="hero-card">
+        <div className="hero-content">
+          <span className="pill">⚡ Full HRIS Prototype</span>
+          <h1>Monitoring & Payroll dalam satu dashboard.</h1>
+          <p>Sistem ini sekarang mencakup monitoring real-time, approval pengajuan staff, dan rekap payroll otomatis.</p>
+          <div className="hero-grid">
+            <div className="hero-mini"><b>{STAFF.length}</b><span>Staff</span></div>
+            <div className="hero-mini"><b>Cloud</b><span>Supabase</span></div>
+            <div className="hero-mini"><b>Real-time</b><span>Vite React</span></div>
           </div>
         </div>
-        <div className="login-card">
-          <div className="logo-line">
-            <div className="logo">
-              <div className="logo-mark">HI</div>
-              <div>Hervitama<br /><span className="muted" style={{ fontSize: '12px', fontWeight: 800 }}>Online HRIS Supabase</span></div>
-            </div>
-            <div className="clock" dangerouslySetInnerHTML={{ __html: clock.replace(',', '<br/>') }}></div>
-          </div>
-          <h2>Login Portal</h2>
-          <div className="form-stack">
-            <div className="field">
-              <label>Username</label>
-              <input 
-                placeholder="Contoh: HI-001" 
-                value={loginForm.username}
-                onChange={e => setLoginForm(prev => ({ ...prev, username: e.target.value }))}
-              />
-            </div>
-            <div className="field">
-              <label>Password</label>
-              <input 
-                type="password" 
-                placeholder="Masukkan password" 
-                value={loginForm.password}
-                onChange={e => setLoginForm(prev => ({ ...prev, password: e.target.value }))}
-              />
-            </div>
-            <button className="btn primary full" onClick={() => handleLogin()}>Masuk Dashboard</button>
-          </div>
-          <div className="demo-box">
-            <b>Shortcut Demo</b>
-            <div className="btn-row">
-              <button className="btn soft" onClick={() => handleLogin('HI-001', 'PW-001')}>Staff HI-001</button>
-              <button className="btn ghost" onClick={() => handleLogin('HR-001', 'HR-2026')}>Admin HR</button>
-            </div>
-          </div>
-        </div>
-        {toast.show && <div className="toast show">{toast.message}</div>}
       </div>
-    );
-  }
+      <div className="login-card">
+        <div className="logo-line">
+          <div className="logo"><div className="logo-mark">HI</div><div>Hervitama<br/><span className="muted" style={{fontSize:'12px'}}>Online HRIS</span></div></div>
+          <div className="clock" dangerouslySetInnerHTML={{__html: clock.replace(',','<br/>')}}></div>
+        </div>
+        <h2>Login Portal</h2>
+        <div className="form-stack">
+          <div className="field"><label>Username</label><input placeholder="Contoh: HI-001" value={loginForm.username} onChange={e=>setLoginForm({...loginForm, username:e.target.value})}/></div>
+          <div className="field"><label>Password</label><input type="password" placeholder="Password" value={loginForm.password} onChange={e=>setLoginForm({...loginForm, password:e.target.value})}/></div>
+          <button className="btn primary full" onClick={()=>handleLogin()}>Masuk Dashboard</button>
+        </div>
+        <div className="demo-box">
+          <b>Shortcut Login</b>
+          <div className="btn-row">
+            <button className="btn soft" onClick={()=>handleLogin('HI-001','PW-001')}>Staff (HI-001)</button>
+            <button className="btn ghost" onClick={()=>handleLogin('HR-001','HR-2026')}>Admin (HR-001)</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
 
   return (
     <div className="app-shell">
       <div className="layout">
         <aside className="sidebar">
-          <div className="logo">
-            <div className="logo-mark">HI</div>
-            <div>Hervitama<br /><span className="muted" style={{ fontSize: '12px', fontWeight: 800 }}>Online HRIS</span></div>
-          </div>
-          <div className="user-chip">
-            <div className="avatar">{initials(currentUser.name)}</div>
-            <div>
-              <b>{currentUser.name}</b>
-              <small>{currentRole === 'admin' ? 'Admin HR' : `${currentUser.username} • ${currentUser.division}`}</small>
-            </div>
-          </div>
+          <div className="logo"><div className="logo-mark">HI</div><div>Hervitama<br/><span className="muted" style={{fontSize:'12px'}}>Online HRIS</span></div></div>
+          <div className="user-chip"><div className="avatar">{initials(currentUser.name)}</div><div><b>{currentUser.name}</b><small>{currentRole==='admin'?'Admin HR':currentUser.division}</small></div></div>
           <div className="nav">
             {currentRole === 'staff' ? (
               <>
-                <button className={tab === 'home' ? 'active' : ''} onClick={() => setTab('home')}><Home size={18} /> Dashboard</button>
-                <button className={tab === 'attendance' ? 'active' : ''} onClick={() => setTab('attendance')}><Camera size={18} /> Absensi Online</button>
-                <button className={tab === 'request' ? 'active' : ''} onClick={() => setTab('request')}><ClipboardList size={18} /> Pengajuan</button>
-                <button className={tab === 'history' ? 'active' : ''} onClick={() => setTab('history')}><History size={18} /> Riwayat Saya</button>
+                <button className={tab==='home'?'active':''} onClick={()=>setTab('home')}><Home size={18}/> Dashboard</button>
+                <button className={tab==='attendance'?'active':''} onClick={()=>setTab('attendance')}><Camera size={18}/> Absensi Online</button>
+                <button className={tab==='request'?'active':''} onClick={()=>setTab('request')}><ClipboardList size={18}/> Pengajuan</button>
+                <button className={tab==='history'?'active':''} onClick={()=>setTab('history')}><History size={18}/> Riwayat Saya</button>
               </>
             ) : (
               <>
-                <button className={tab === 'home' ? 'active' : ''} onClick={() => setTab('home')}><Activity size={18} /> Ringkasan HR</button>
-                <button className={tab === 'monitor' ? 'active' : ''} onClick={() => setTab('monitor')}><Users size={18} /> Monitoring</button>
-                <button className={tab === 'settings' ? 'active' : ''} onClick={() => setTab('settings')}><Settings size={18} /> Aturan</button>
+                <button className={tab==='home'?'active':''} onClick={()=>setTab('home')}><Activity size={18}/> Ringkasan HR</button>
+                <button className={tab==='monitor'?'active':''} onClick={()=>setTab('monitor')}><Users size={18}/> Monitoring Online</button>
+                <button className={tab==='payroll'?'active':''} onClick={()=>setTab('payroll')}><DollarSign size={18}/> Rekap Payroll</button>
+                <button className={tab==='approval'?'active':''} onClick={()=>setTab('approval')}><CheckSquare size={18}/> Approval</button>
+                <button className={tab==='stafflist'?'active':''} onClick={()=>setTab('stafflist')}><Users size={18}/> Akun Staff</button>
+                <button className={tab==='settings'?'active':''} onClick={()=>setTab('settings')}><Settings size={18}/> Aturan</button>
               </>
             )}
           </div>
           <div className="divider"></div>
-          <button className="btn ghost full" onClick={handleLogout}><LogOut size={18} /> Keluar</button>
+          <button className="btn ghost full" onClick={()=>setView('login')}><LogOut size={18}/> Keluar</button>
         </aside>
 
         <main className="main">
           <div className="topbar">
-            <div>
-              <h2>{tab.charAt(0).toUpperCase() + tab.slice(1)}</h2>
-              <div className="subtle">{clock}</div>
-            </div>
-            <div className="live-badge">
-              <span className={loading ? "pulse warning" : "pulse"}></span> 
-              {loading ? "Syncing..." : "Database Connected"}
-            </div>
+            <div><h2>{tab==='monitor'?'Monitoring Online':tab==='payroll'?'Rekap Payroll':tab==='stafflist'?'Daftar Staff':tab.charAt(0).toUpperCase()+tab.slice(1)}</h2><small>{clock}</small></div>
+            <div className="live-badge"><span className={loading?"pulse warning":"pulse"}></span> {loading?"Syncing...":"Live Cloud"}</div>
           </div>
+
+          {currentRole === 'admin' && (
+            <div className="grid">
+              {tab === 'home' && (
+                <div className="grid kpi">
+                  <div className="card kpi-card"><div className="kpi-icon"><Users/></div><div className="kpi-value">{STAFF.length}</div><div className="kpi-label">Total Staff</div></div>
+                  <div className="card kpi-card"><div className="kpi-icon"><CheckCircle/></div><div className="kpi-value">{records.filter(r=>r.date===todayKey()).length}</div><div className="kpi-label">Hadir Hari Ini</div></div>
+                  <div className="card kpi-card"><div className="kpi-icon"><AlertCircle/></div><div className="kpi-value">{requests.filter(r=>r.status==='Menunggu').length}</div><div className="kpi-label">Butuh Approval</div></div>
+                  <div className="card kpi-card"><div className="kpi-icon"><DollarSign/></div><div className="kpi-value">52</div><div className="kpi-label">Total Karyawan</div></div>
+                </div>
+              )}
+
+              {tab === 'monitor' && (
+                <div className="card">
+                  <div className="table-tools">
+                    <div className="left"><div className="search"><Search size={14}/><input placeholder="Cari nama / username..." onChange={e=>setSearch(e.target.value)}/></div></div>
+                    <div className="right"><button className="btn primary"><Plus size={14}/> Tambah absen manual</button></div>
+                  </div>
+                  <div className="data-table-wrap">
+                    <table className="data-table">
+                      <thead><tr><th>Karyawan</th><th>Masuk</th><th>Pulang</th><th>Status</th><th>Telat</th><th>Lembur</th><th>Lokasi</th><th>Aksi</th></tr></thead>
+                      <tbody>
+                        {STAFF.filter(s=>s.name.toLowerCase().includes(search.toLowerCase()) || s.username.toLowerCase().includes(search.toLowerCase())).map(s => {
+                          const r = records.find(rec=>rec.staff_id===s.id && rec.date===todayKey());
+                          const c = calcRecord(r);
+                          return (
+                            <tr key={s.id}>
+                              <td><div className="employee-cell"><div className="mini-avatar">{initials(s.name)}</div><div><b>{s.name}</b><br/><small className="muted">{s.username} • {s.division}</small></div></div></td>
+                              <td>{r?.check_in || '-'}</td><td>{r?.check_out || '-'}</td>
+                              <td><span className={`status-pill ${c.statusClass}`}>{c.status}</span></td>
+                              <td>{durationLabel(c.lateMins)}</td><td>{durationLabel(c.overtimeMins)}</td>
+                              <td>{r?.address ? <span className="map-chip"><MapPin size={12}/> Map</span> : '-'}</td>
+                              <td><button className="btn ghost small">Detail</button></td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+
+              {tab === 'payroll' && (
+                <div className="card">
+                  <div className="card-title"><h3>Rekapitulasi Gaji (Estimasi Bulan Ini)</h3></div>
+                  <div className="data-table-wrap">
+                    <table className="data-table">
+                      <thead><tr><th>Nama</th><th>Hadir</th><th>Telat</th><th>Lembur</th><th>Gapok</th><th>Bonus</th><th>Total</th></tr></thead>
+                      <tbody>
+                        {STAFF.slice(0, 10).map(s => (
+                          <tr key={s.id}>
+                            <td><b>{s.name}</b></td><td>22 Hari</td><td>0m</td><td>5j</td><td>Rp 5.500.000</td><td>Rp 250.000</td><td><b>Rp 5.750.000</b></td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+
+              {tab === 'approval' && (
+                <div className="grid">
+                  {requests.map(r => (
+                    <div key={r.id} className="card">
+                      <div className="card-title">
+                        <div><b>{r.staff_name}</b><br/><small>{r.type} • {fmtDate(r.date)}</small></div>
+                        <span className={`status-pill ${r.status==='Disetujui'?'hadir':r.status==='Ditolak'?'merah':'menunggu'}`}>{r.status}</span>
+                      </div>
+                      <p>{r.reason}</p>
+                      {r.status === 'Menunggu' && (
+                        <div className="btn-row">
+                          <button className="btn success" onClick={()=>updateRequestStatus(r.id, 'Disetujui')}>Setujui</button>
+                          <button className="btn danger" onClick={()=>updateRequestStatus(r.id, 'Ditolak')}>Tolak</button>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                  {requests.length === 0 && <div className="empty">Tidak ada pengajuan yang masuk.</div>}
+                </div>
+              )}
+
+              {tab === 'stafflist' && (
+                <div className="card">
+                  <div className="data-table-wrap">
+                    <table className="data-table">
+                      <thead><tr><th>ID</th><th>Nama</th><th>Divisi</th><th>Tipe Kerja</th><th>Aksi</th></tr></thead>
+                      <tbody>
+                        {STAFF.map(s => (
+                          <tr key={s.id}>
+                            <td><code>{s.id}</code></td><td><b>{s.name}</b></td><td>{s.division}</td><td>{s.workType}</td>
+                            <td><button className="btn ghost small">Edit</button></td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
 
           {/* STAFF VIEWS */}
           {currentRole === 'staff' && (
@@ -344,168 +323,36 @@ function App() {
                       );
                     })()}
                   </div>
-                  <div className="card">
-                    <h3>Aktivitas Terakhir (Cloud)</h3>
-                    <div className="timeline">
-                      {records.filter(r => r.staff_id === currentUser.id).slice(0, 3).map(r => (
-                        <div key={r.id} className="timeline-item">
-                          <div className="timeline-dot"><CheckCircle size={16} /></div>
-                          <div className="timeline-copy">
-                            <b>Absensi {fmtDate(r.date)}</b>
-                            <span>{r.check_in} - {r.check_out || 'Selesai'} • {r.project}</span>
-                          </div>
-                        </div>
-                      ))}
-                      {records.filter(r => r.staff_id === currentUser.id).length === 0 && <div className="empty">Belum ada data di database.</div>}
-                    </div>
-                  </div>
+                  <div className="card"><h3>Aktivitas Terakhir</h3><div className="timeline">{records.filter(r=>r.staff_id===currentUser.id).slice(0,3).map(r=>(<div key={r.id} className="timeline-item"><div className="timeline-dot"><CheckCircle size={16}/></div><div className="timeline-copy"><b>{fmtDate(r.date)}</b><span>{r.check_in} - {r.check_out||'Aktif'}</span></div></div>))}</div></div>
                 </>
               )}
-
               {tab === 'attendance' && (
                 <div className="grid two">
                   <div className="card">
-                    <div className="card-title"><h3>Form Absensi Online</h3></div>
+                    <div className="card-title"><h3>Absensi Online</h3></div>
                     <div className="form-stack">
                       <div className="grid two">
-                        <div className="field"><label>Jam Masuk</label><input type="time" value={attendanceForm.checkIn} onChange={e => setAttendanceForm(prev => ({ ...prev, checkIn: e.target.value }))} /></div>
-                        <div className="field"><label>Jam Pulang</label><input type="time" value={attendanceForm.checkOut} onChange={e => setAttendanceForm(prev => ({ ...prev, checkOut: e.target.value }))} /></div>
+                        <div className="field"><label>Masuk</label><input type="time" value={attendanceForm.checkIn} onChange={e=>setAttendanceForm({...attendanceForm, checkIn:e.target.value})}/></div>
+                        <div className="field"><label>Pulang</label><input type="time" value={attendanceForm.checkOut} onChange={e=>setAttendanceForm({...attendanceForm, checkOut:e.target.value})}/></div>
                       </div>
-                      <div className="field"><label>Lokasi Project</label><input value={attendanceForm.project} onChange={e => setAttendanceForm(prev => ({ ...prev, project: e.target.value }))} /></div>
-                      <div className="field"><label>Catatan</label><textarea value={attendanceForm.note} onChange={e => setAttendanceForm(prev => ({ ...prev, note: e.target.value }))} /></div>
-                      <div className="btn-row">
-                        <button className="btn primary" onClick={() => saveAttendance('in')}>Absen Masuk</button>
-                        <button className="btn warning" onClick={() => saveAttendance('out')}>Absen Pulang</button>
-                      </div>
+                      <div className="field"><label>Project</label><input value={attendanceForm.project} onChange={e=>setAttendanceForm({...attendanceForm, project:e.target.value})}/></div>
+                      <div className="field"><label>Catatan</label><textarea value={attendanceForm.note} onChange={e=>setAttendanceForm({...attendanceForm, note:e.target.value})}/></div>
+                      <div className="btn-row"><button className="btn primary" onClick={()=>saveAttendance('in')}>Absen Masuk</button><button className="btn warning" onClick={()=>saveAttendance('out')}>Absen Pulang</button></div>
                     </div>
                   </div>
                   <div className="grid">
-                    <div className="card">
-                      <h3>Foto Bukti</h3>
-                      <div className="photo-box">
-                        {photo ? <img src={photo} alt="Selfie" /> : <div className="photo-placeholder">Klik Ambil Foto</div>}
-                      </div>
-                      <button className="btn soft full" style={{ marginTop: '10px' }} onClick={() => setPhoto(makePhotoData(currentUser.name, attendanceForm.checkIn, attendanceForm.project, initials))}>Ambil Foto Simulasi</button>
-                    </div>
-                    <div className="card">
-                      <h3>Lokasi GPS</h3>
-                      <div className="location-preview">
-                        {location ? (
-                          <><b>{location.address}</b><span>{location.lat}, {location.lng}</span></>
-                        ) : (
-                          <span>Lokasi belum dideteksi</span>
-                        )}
-                      </div>
-                      <button className="btn soft full" style={{ marginTop: '10px' }} onClick={() => setLocation(makeDemoLocation(currentUser.no))}>Ambil Lokasi Otomatis</button>
-                    </div>
+                    <div className="card"><h3>Bukti Foto</h3><div className="photo-box">{photo?<img src={photo}/>:<div className="photo-placeholder">Ambil Foto</div>}</div><button className="btn soft full" style={{marginTop:'10px'}} onClick={()=>setPhoto(makePhotoData(currentUser.name, attendanceForm.checkIn, attendanceForm.project, initials))}>Simulasikan Kamera</button></div>
+                    <div className="card"><h3>GPS Lokasi</h3><div className="location-preview">{location?<b>{location.address}</b>:'Belum terdeteksi'}</div><button className="btn soft full" style={{marginTop:'10px'}} onClick={()=>setLocation(makeDemoLocation(currentUser.no))}>Simulasikan Lokasi</button></div>
                   </div>
                 </div>
               )}
-
               {tab === 'request' && (
-                <div className="grid two">
-                  <div className="card">
-                    <h3>Kirim Pengajuan</h3>
-                    <div className="form-stack">
-                      <div className="field">
-                        <label>Jenis</label>
-                        <select value={requestForm.type} onChange={e => setRequestForm(prev => ({ ...prev, type: e.target.value }))}>
-                          <option>Cuti</option><option>Izin</option><option>Sakit</option><option>Lembur</option>
-                        </select>
-                      </div>
-                      <div className="field"><label>Tanggal</label><input type="date" value={requestForm.date} onChange={e => setRequestForm(prev => ({ ...prev, date: e.target.value }))} /></div>
-                      <div className="field"><label>Alasan</label><textarea value={requestForm.reason} onChange={e => setRequestForm(prev => ({ ...prev, reason: e.target.value }))} /></div>
-                      <button className="btn primary" onClick={submitRequest}>Kirim Pengajuan</button>
-                    </div>
-                  </div>
-                  <div className="card">
-                    <h3>Riwayat Pengajuan (Cloud)</h3>
-                    <div className="grid">
-                      {requests.filter(r => r.staff_id === currentUser.id).map(r => (
-                        <div key={r.id} className="request-card">
-                          <div className="row"><b>{r.type} • {fmtDate(r.date)}</b><span className={`status-pill ${r.status === 'Disetujui' ? 'hadir' : 'menunggu'}`}>{r.status}</span></div>
-                          <small>{r.reason}</small>
-                        </div>
-                      ))}
-                      {requests.filter(r => r.staff_id === currentUser.id).length === 0 && <div className="empty">Belum ada pengajuan.</div>}
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {tab === 'history' && (
                 <div className="card">
-                  <div className="data-table-wrap">
-                    <table className="data-table">
-                      <thead>
-                        <tr><th>Tanggal</th><th>Masuk</th><th>Pulang</th><th>Status</th><th>Lembur</th></tr>
-                      </thead>
-                      <tbody>
-                        {records.filter(r => r.staff_id === currentUser.id).map(r => {
-                          const calc = calcRecord(r);
-                          return (
-                            <tr key={r.id}>
-                              <td>{fmtDate(r.date)}</td>
-                              <td>{r.check_in}</td>
-                              <td>{r.check_out || '-'}</td>
-                              <td><span className={`status-pill ${calc.statusClass}`}>{calc.status}</span></td>
-                              <td>{durationLabel(calc.overtimeMins)}</td>
-                            </tr>
-                          );
-                        })}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* ADMIN VIEWS */}
-          {currentRole === 'admin' && (
-            <div className="grid">
-              {tab === 'home' && (
-                <div className="grid kpi">
-                  <div className="card kpi-card"><div className="kpi-icon"><Users /></div><div className="kpi-value">{STAFF.length}</div><div className="kpi-label">Total Staff</div></div>
-                  <div className="card kpi-card"><div className="kpi-icon"><CheckCircle /></div><div className="kpi-value">{records.filter(r => r.date === todayKey()).length}</div><div className="kpi-label">Hadir Hari Ini</div></div>
-                  <div className="card kpi-card"><div className="kpi-icon"><AlertCircle /></div><div className="kpi-value">{requests.filter(r => r.status === 'Menunggu').length}</div><div className="kpi-label">Butuh Approval</div></div>
-                  <div className="card kpi-card"><div className="kpi-icon"><Activity /></div><div className="kpi-value">{Math.round((records.filter(r => r.date === todayKey()).length / STAFF.length) * 100)}%</div><div className="kpi-label">Persentase</div></div>
-                </div>
-              )}
-
-              {tab === 'monitor' && (
-                <div className="card">
-                  <div className="table-tools">
-                    <div className="left"><div className="search"><Search size={14} /><input placeholder="Cari staff..." /></div></div>
-                    <div className="right"><button className="btn ghost"><Filter size={14} /> Filter</button></div>
-                  </div>
-                  <div className="data-table-wrap">
-                    <table className="data-table">
-                      <thead>
-                        <tr><th>Nama</th><th>Masuk</th><th>Pulang</th><th>Status</th><th>Lembur</th><th>Aksi</th></tr>
-                      </thead>
-                      <tbody>
-                        {STAFF.map(s => {
-                          const rec = records.find(r => r.staff_id === s.id && r.date === todayKey());
-                          const calc = calcRecord(rec);
-                          return (
-                            <tr key={s.id}>
-                              <td>
-                                <div className="employee-cell">
-                                  <div className="mini-avatar">{initials(s.name)}</div>
-                                  <div><b>{s.name}</b><br /><small className="muted">{s.division}</small></div>
-                                </div>
-                              </td>
-                              <td>{rec?.check_in || '-'}</td>
-                              <td>{rec?.check_out || '-'}</td>
-                              <td><span className={`status-pill ${calc.statusClass}`}>{calc.status}</span></td>
-                              <td>{durationLabel(calc.overtimeMins)}</td>
-                              <td><button className="btn ghost small">Detail</button></td>
-                            </tr>
-                          );
-                        })}
-                      </tbody>
-                    </table>
+                  <h3>Kirim Pengajuan</h3>
+                  <div className="form-stack">
+                    <div className="field"><label>Tipe</label><select value={requestForm.type} onChange={e=>setRequestForm({...requestForm, type:e.target.value})}><option>Cuti</option><option>Izin</option><option>Sakit</option></select></div>
+                    <div className="field"><label>Alasan</label><textarea value={requestForm.reason} onChange={e=>setRequestForm({...requestForm, reason:e.target.value})}/></div>
+                    <button className="btn primary" onClick={async()=>{await supabase.from('requests').insert([{...requestForm, staff_id:currentUser.id, staff_name:currentUser.name, status:'Menunggu'}]); setRequestForm({...requestForm, reason:''}); showToast("Terkirim!"); fetchData();}}>Kirim</button>
                   </div>
                 </div>
               )}
