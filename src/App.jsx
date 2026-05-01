@@ -214,6 +214,19 @@ function App() {
     };
   };
 
+  // Pre-calculate filtered list for accuracy
+  const filteredStaff = staffList.filter(s => {
+    // 1. Filter by Search Name
+    const matchesSearch = s.name.toLowerCase().includes(search.toLowerCase());
+    if (!matchesSearch) return false;
+
+    // 2. Filter by Status
+    if (statusFilter === 'Semua status') return true;
+    const r = records.find(rec => rec.staff_id === s.id && rec.date === todayKey());
+    const c = calcRecord(r);
+    return c.status === statusFilter;
+  });
+
   return (
     <>
       <div className="bg-animation">
@@ -317,7 +330,11 @@ function App() {
                           <div className="left">
                             <div className="search"><Search size={14}/><input placeholder="Cari nama..." value={search} onChange={e=>setSearch(e.target.value)}/></div>
                             <select value={statusFilter} onChange={e=>setStatusFilter(e.target.value)}>
-                              <option>Semua status</option><option>Sudah absen</option><option>Telat</option><option>Lembur</option><option>Belum absen</option>
+                              <option value="Semua status">Semua status</option>
+                              <option value="Sudah absen">Sudah absen</option>
+                              <option value="Telat">Telat</option>
+                              <option value="Lembur">Lembur</option>
+                              <option value="Belum absen">Belum absen</option>
                             </select>
                           </div>
                           <div className="right"><button className="btn primary" onClick={()=>setShowManualModal(true)}><Plus size={14}/> Tambah absen manual</button></div>
@@ -326,27 +343,20 @@ function App() {
                           <table className="data-table">
                             <thead><tr><th>Karyawan</th><th>Masuk</th><th>Pulang</th><th>Status</th><th>Telat</th><th>Lembur</th><th>Aksi</th></tr></thead>
                             <tbody>
-                              {staffList
-                                .filter(s => s.name.toLowerCase().includes(search.toLowerCase()))
-                                .filter(s => {
-                                  if (statusFilter === 'Semua status') return true;
-                                  const r = records.find(rec => rec.staff_id === s.id && rec.date === todayKey());
-                                  const c = calcRecord(r);
-                                  return c.status === statusFilter;
-                                })
-                                .map(s => {
-                                  const r = records.find(rec=>rec.staff_id===s.id && rec.date===todayKey());
-                                  const c = calcRecord(r);
-                                  return (
-                                    <tr key={s.id}>
-                                      <td><div className="employee-cell"><div className="mini-avatar">{initials(s.name)}</div><div><b>{s.name}</b><br/><small className="muted">{s.division}</small></div></div></td>
-                                      <td>{r?.check_in||'-'}</td><td>{r?.check_out||'-'}</td>
-                                      <td><span className={`status-pill ${c.statusClass}`}>{c.status}</span></td>
-                                      <td>{durationLabel(c.lateMins)}</td><td>{durationLabel(c.overtimeMins)}</td>
-                                      <td><button className="btn ghost small" onClick={()=>setSelectedStaff(s)}>Detail</button></td>
-                                    </tr>
-                                  );
-                                })}
+                              {filteredStaff.map(s => {
+                                const r = records.find(rec=>rec.staff_id===s.id && rec.date===todayKey());
+                                const c = calcRecord(r);
+                                return (
+                                  <tr key={s.id}>
+                                    <td><div className="employee-cell"><div className="mini-avatar">{initials(s.name)}</div><div><b>{s.name}</b><br/><small className="muted">{s.division}</small></div></div></td>
+                                    <td>{r?.check_in||'-'}</td><td>{r?.check_out||'-'}</td>
+                                    <td><span className={`status-pill ${c.statusClass}`}>{c.status}</span></td>
+                                    <td>{durationLabel(c.lateMins)}</td><td>{durationLabel(c.overtimeMins)}</td>
+                                    <td><button className="btn ghost small" onClick={()=>setSelectedStaff(s)}>Detail</button></td>
+                                  </tr>
+                                );
+                              })}
+                              {filteredStaff.length === 0 && <tr><td colSpan="7" style={{textAlign:'center', padding:'40px'}}><div className="muted">Tidak ada data yang cocok dengan filter.</div></td></tr>}
                             </tbody>
                           </table>
                         </div>
