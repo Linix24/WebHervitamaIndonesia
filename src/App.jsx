@@ -215,7 +215,7 @@ function App() {
   };
 
   return (
-    <div className="app-shell">
+    <div className="app-shell animate-in">
       <div className="bg-animation">
         <div className="orb orb-1"></div>
         <div className="orb orb-2"></div>
@@ -288,7 +288,7 @@ function App() {
               <div><h2>{tab==='monitor'?'Monitoring Online':tab==='payroll'?'Rekap Payroll':tab==='stafflist'?'Kelola Akun Staff':tab==='settings'?'Aturan Absensi':tab.charAt(0).toUpperCase()+tab.slice(1)}</h2><small>{clock}</small></div>
               <div className="live-badge"><span className={loading?"pulse warning":"pulse"}></span> {loading?"Syncing...":"Live Cloud"}</div>
             </div>
-            <div className="grid">
+            <div className="grid animate-slide-up" key={tab}>
               {currentRole === 'admin' ? (
                 <>
                   {tab === 'home' && (
@@ -392,16 +392,16 @@ function App() {
         </div>
       )}
 
-      {/* Modals */}
+      {/* Modals with animate-in class */}
       {showManualModal && (
-        <div className="modal-backdrop"><div className="modal"><h3>Manual Absen</h3><button onClick={()=>setShowManualModal(false)}>Tutup</button></div></div>
+        <div className="modal-backdrop"><div className="modal animate-in"><h3>Manual Absen</h3><button onClick={()=>setShowManualModal(false)}>Tutup</button></div></div>
       )}
       {showAddStaffModal && (
-        <div className="modal-backdrop"><div className="modal"><h3>Tambah Staff</h3><button onClick={()=>setShowAddStaffModal(false)}>Tutup</button></div></div>
+        <div className="modal-backdrop"><div className="modal animate-in"><h3>Tambah Staff</h3><button onClick={()=>setShowAddStaffModal(false)}>Tutup</button></div></div>
       )}
       {selectedStaff && (
         <div className="modal-backdrop">
-          <div className="modal">
+          <div className="modal animate-in">
             <h3>{selectedStaff.name}</h3>
             {(() => {
               const stats = getStaffStats(selectedStaff.id);
@@ -411,7 +411,7 @@ function App() {
           </div>
         </div>
       )}
-      {toast.show && <div className="toast show">{toast.message}</div>}
+      {toast.show && <div className="toast show animate-in">{toast.message}</div>}
     </div>
   );
 }
