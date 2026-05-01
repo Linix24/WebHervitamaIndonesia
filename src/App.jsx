@@ -3,7 +3,7 @@ import {
   Home, Camera, ClipboardList, History, Users, 
   Activity, Settings, LogOut, CheckCircle, Clock, 
   MapPin, AlertCircle, Search, Filter, MoreHorizontal,
-  ChevronDown, Plus, Trash2, Send, DollarSign, CheckSquare, Upload, Image, Navigation, X
+  ChevronDown, Plus, Trash2, Send, DollarSign, CheckSquare, Upload, Image, Navigation, X, User
 } from 'lucide-react';
 import { STAFF, ADMIN, DIVISIONS, LOCATIONS } from './data';
 import { 
@@ -30,8 +30,10 @@ function App() {
   const [statusFilter, setStatusFilter] = useState('Semua status');
   const [detecting, setDetecting] = useState(false);
   
-  // Manual Attendance Modal State
+  // Modals State
   const [showManualModal, setShowManualModal] = useState(false);
+  const [selectedStaff, setSelectedStaff] = useState(null); // For Detail View
+
   const [manualForm, setManualForm] = useState({ staffId: '', checkIn: '08:00', checkOut: '', date: todayKey() });
   const [manualPhoto, setManualPhoto] = useState('');
   const [manualLocation, setManualLocation] = useState(null);
@@ -176,6 +178,25 @@ function App() {
     showToast(`Request ${status}!`); fetchData();
   };
 
+  const getStaffStats = (staffId) => {
+    const staffRecords = records.filter(r => r.staff_id === staffId);
+    const staffRequests = requests.filter(r => r.staff_id === staffId && r.status === 'Disetujui');
+    
+    let totalOvertimeMins = 0;
+    staffRecords.forEach(r => {
+      const calc = calcRecord(r);
+      totalOvertimeMins += calc.overtimeMins;
+    });
+
+    return {
+      present: staffRecords.length,
+      izin: staffRequests.filter(r => r.type === 'Izin').length,
+      sakit: staffRequests.filter(r => r.type === 'Sakit').length,
+      cuti: staffRequests.filter(r => r.type === 'Cuti').length,
+      overtime: durationLabel(totalOvertimeMins)
+    };
+  };
+
   if (view === 'login') return (
     <div className="login-layout">
       <div className="hero-card">
@@ -250,12 +271,23 @@ function App() {
           {currentRole === 'admin' && (
             <div className="grid">
               {tab === 'home' && (
-                <div className="grid kpi">
-                  <div className="card kpi-card"><div className="kpi-icon"><Users/></div><div className="kpi-value">{STAFF.length}</div><div className="kpi-label">Total Staff</div></div>
-                  <div className="card kpi-card"><div className="kpi-icon"><CheckCircle/></div><div className="kpi-value">{records.filter(r=>r.date===todayKey()).length}</div><div className="kpi-label">Hadir Hari Ini</div></div>
-                  <div className="card kpi-card"><div className="kpi-icon"><AlertCircle/></div><div className="kpi-value">{requests.filter(r=>r.status==='Menunggu').length}</div><div className="kpi-label">Butuh Approval</div></div>
-                  <div className="card kpi-card"><div className="kpi-icon"><DollarSign/></div><div className="kpi-value">52</div><div className="kpi-label">Total Karyawan</div></div>
-                </div>
+                <>
+                  <div className="grid kpi">
+                    <div className="card kpi-card"><div className="kpi-icon"><Users/></div><div className="kpi-value">{STAFF.length}</div><div className="kpi-label">Total Staff</div></div>
+                    <div className="card kpi-card"><div className="kpi-icon"><CheckCircle/></div><div className="kpi-value">{records.filter(r=>r.date===todayKey()).length}</div><div className="kpi-label">Hadir Hari Ini</div></div>
+                    <div className="card kpi-card"><div className="kpi-icon"><AlertCircle/></div><div className="kpi-value">{requests.filter(r=>r.status==='Menunggu').length}</div><div className="kpi-label">Butuh Approval</div></div>
+                    <div className="card kpi-card"><div className="kpi-icon"><DollarSign/></div><div className="kpi-value">52</div><div className="kpi-label">Total Karyawan</div></div>
+                  </div>
+                  <div className="card">
+                    <h3>Rekapitulasi Kehadiran Mei 2026</h3>
+                    <div className="mini-metrics" style={{marginTop:'15px'}}>
+                      <div className="mini-metric"><b>{records.length}</b><span>Total Absensi</span></div>
+                      <div className="mini-metric"><b>{records.filter(r=>calcRecord(r).status==='Telat').length}</b><span>Total Telat</span></div>
+                      <div className="mini-metric"><b>{requests.filter(r=>r.status==='Disetujui').length}</b><span>Total Izin/Cuti</span></div>
+                      <div className="mini-metric"><b>98%</b><span>Health Rate</span></div>
+                    </div>
+                  </div>
+                </>
               )}
 
               {tab === 'monitor' && (
@@ -295,7 +327,7 @@ function App() {
                               <td><span className={`status-pill ${c.statusClass}`}>{c.status}</span></td>
                               <td>{durationLabel(c.lateMins)}</td><td>{durationLabel(c.overtimeMins)}</td>
                               <td>{r?.address ? <span className="map-chip"><MapPin size={12}/> Map</span> : '-'}</td>
-                              <td><button className="btn ghost small">Detail</button></td>
+                              <td><button className="btn ghost small" onClick={()=>setSelectedStaff(s)}>Detail</button></td>
                             </tr>
                           );
                         })}
@@ -353,7 +385,7 @@ function App() {
                         {STAFF.map(s => (
                           <tr key={s.id}>
                             <td><code>{s.id}</code></td><td><b>{s.name}</b></td><td>{s.division}</td><td>{s.workType}</td>
-                            <td><button className="btn ghost small">Edit</button></td>
+                            <td><button className="btn ghost small" onClick={()=>setSelectedStaff(s)}>Edit</button></td>
                           </tr>
                         ))}
                       </tbody>
@@ -575,6 +607,57 @@ function App() {
                   </div>
                 </div>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Detail Karyawan Modal */}
+      {selectedStaff && (
+        <div className="modal-backdrop">
+          <div className="modal" style={{maxWidth:'600px'}}>
+            <div className="modal-head">
+              <h3>Profil & Rekap Karyawan</h3>
+              <button className="btn ghost small" onClick={()=>setSelectedStaff(null)}><X size={18}/></button>
+            </div>
+            <div className="modal-body">
+              <div className="user-chip" style={{background:'#f8faff', padding:'20px', borderRadius:'22px'}}>
+                <div className="avatar" style={{width:'60px', height:'60px', fontSize:'24px'}}>{initials(selectedStaff.name)}</div>
+                <div style={{marginLeft:'15px'}}>
+                  <h3 style={{margin:0}}>{selectedStaff.name}</h3>
+                  <p className="muted" style={{margin:'4px 0 0'}}>{selectedStaff.username} • {selectedStaff.division}</p>
+                </div>
+              </div>
+              
+              <h4 style={{marginTop:'25px', marginBottom:'15px'}}>Statistik Kehadiran (Mei 2026)</h4>
+              <div className="grid two" style={{gap:'12px'}}>
+                {(() => {
+                  const stats = getStaffStats(selectedStaff.id);
+                  return (
+                    <>
+                      <div className="card" style={{background:'var(--green-soft)', border:'0', textAlign:'center'}}>
+                        <b style={{fontSize:'24px', display:'block', color:'#08784f'}}>{stats.present}</b>
+                        <small className="muted">Total Hadir</small>
+                      </div>
+                      <div className="card" style={{background:'var(--violet-soft)', border:'0', textAlign:'center'}}>
+                        <b style={{fontSize:'24px', display:'block', color:'#5a32a3'}}>{stats.overtime}</b>
+                        <small className="muted">Total Lembur</small>
+                      </div>
+                      <div className="card" style={{background:'#f0f4f8', border:'0', textAlign:'center'}}>
+                        <b style={{fontSize:'24px', display:'block'}}>{stats.cuti}</b>
+                        <small className="muted">Cuti</small>
+                      </div>
+                      <div className="card" style={{background:'#f0f4f8', border:'0', textAlign:'center'}}>
+                        <b style={{fontSize:'24px', display:'block'}}>{stats.izin + stats.sakit}</b>
+                        <small className="muted">Izin / Sakit</small>
+                      </div>
+                    </>
+                  );
+                })()}
+              </div>
+
+              <div className="divider"></div>
+              <button className="btn ghost full" onClick={()=>setSelectedStaff(null)}>Tutup Detail</button>
             </div>
           </div>
         </div>
