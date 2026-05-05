@@ -53,7 +53,14 @@ export const RAW_STAFF_NAMES = [
   "Widhiworo Tantri"
 ];
 
-export const DIVISIONS = ["Engineering", "Sales & Marketing", "Calibration", "Operations", "Finance & HR"];
+export const DIVISIONS = [
+  'Engineering',
+  'Sales & Marketing',
+  'Calibration',
+  'Operations',
+  'Finance & HR',
+  'Dosen Pembimbing'
+];
 export const LOCATIONS = ["Kantor Pusat", "Project Site", "Workshop", "Client Site", "Remote/Dinas"];
 
 export const STAFF = RAW_STAFF_NAMES.map((name, idx) => {
