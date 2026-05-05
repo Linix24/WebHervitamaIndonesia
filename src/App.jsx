@@ -5,7 +5,7 @@ import {
   MapPin, AlertCircle, Search, Filter, MoreHorizontal,
   ChevronDown, Plus, Trash2, Send, DollarSign, CheckSquare, Upload, Image, Navigation, X, User, UserPlus, Info, Calendar, Heart, MessageSquare
 } from 'lucide-react';
-import { STAFF as INITIAL_STAFF, ADMIN, DIVISIONS, LOCATIONS } from './data';
+import { ADMIN, DIVISIONS, LOCATIONS } from './data';
 import { 
   todayKey, nowTime, fmtDate, initials, 
   minutesOf, durationLabel, cryptoId, 
@@ -22,6 +22,7 @@ function App() {
   const [tab, setTab] = useState('home');
   const [records, setRecords] = useState([]);
   const [requests, setRequests] = useState([]);
+  const [staffList, setStaffList] = useState([]); // Sekarang dari Supabase
   const [settings, setSettings] = useState(DEFAULT_SETTINGS);
   const [toast, setToast] = useState({ show: false, message: '' });
   const [clock, setClock] = useState('');
@@ -30,7 +31,6 @@ function App() {
   const [statusFilter, setStatusFilter] = useState('Semua status');
   const [detecting, setDetecting] = useState(false);
   
-  const [staffList, setStaffList] = useState(INITIAL_STAFF);
   const [showManualModal, setShowManualModal] = useState(false);
   const [showAddStaffModal, setShowAddStaffModal] = useState(false);
   const [selectedStaff, setSelectedStaff] = useState(null); 
@@ -55,8 +55,15 @@ function App() {
   const fetchData = async () => {
     setLoading(true);
     try {
+      // Ambil data staff
+      const { data: staffData } = await supabase.from('staff').select('*').order('id', { ascending: true });
+      setStaffList(staffData || []);
+
+      // Ambil data absensi
       const { data: attData } = await supabase.from('attendance').select('*').order('date', { ascending: false });
       setRecords(attData || []);
+
+      // Ambil data request
       const { data: reqData } = await supabase.from('requests').select('*').order('created_at', { ascending: false });
       setRequests(reqData || []);
     } catch (error) { console.error(error); } finally { setLoading(false); }
@@ -66,10 +73,12 @@ function App() {
     fetchData();
     const attSub = supabase.channel('a').on('postgres_changes',{event:'*',schema:'public',table:'attendance'},()=>fetchData()).subscribe();
     const reqSub = supabase.channel('r').on('postgres_changes',{event:'*',schema:'public',table:'requests'},()=>fetchData()).subscribe();
+    const staffSub = supabase.channel('s').on('postgres_changes',{event:'*',schema:'public',table:'staff'},()=>fetchData()).subscribe();
+    
     const timer = setInterval(() => {
       setClock(new Date().toLocaleString("id-ID", { weekday: "long", day: "2-digit", month: "long", year: "numeric", hour: "2-digit", minute: "2-digit", second: "2-digit" }));
     }, 1000);
-    return () => { clearInterval(timer); supabase.removeChannel(attSub); supabase.removeChannel(reqSub); };
+    return () => { clearInterval(timer); supabase.removeChannel(attSub); supabase.removeChannel(reqSub); supabase.removeChannel(staffSub); };
   }, []);
 
   const showToast = (message) => {
@@ -77,18 +86,29 @@ function App() {
     setTimeout(() => setToast({ show: false, message: '' }), 3000);
   };
 
-  const handleLogin = (u, p) => {
+  const handleLogin = async (u, p) => {
     const username = (u || loginForm.username).trim().toUpperCase();
     const password = (p || loginForm.password).trim();
+    
     if (username === ADMIN.username && password === ADMIN.password) {
       setCurrentUser(ADMIN); setCurrentRole('admin'); setView('admin'); setTab('home');
       return;
     }
-    const staff = staffList.find(s => s.username === username && s.password === password);
+
+    // Cek ke Database Supabase
+    const { data: staff, error } = await supabase
+      .from('staff')
+      .select('*')
+      .eq('username', username)
+      .eq('password', password)
+      .single();
+
     if (staff) {
       setCurrentUser(staff); setCurrentRole('staff'); setView('staff'); setTab('home');
-      setAttendanceForm(prev => ({ ...prev, project: staff.defaultLocation }));
-    } else showToast("Akun tidak ditemukan.");
+      setAttendanceForm(prev => ({ ...prev, project: 'Head Office' }));
+    } else {
+      showToast("Akun tidak ditemukan atau password salah.");
+    }
   };
 
   const handleFileChange = (e, target = 'staff') => {
@@ -176,20 +196,36 @@ function App() {
     }
   };
 
-  const handleAddStaff = () => {
+  const handleAddStaff = async () => {
     if (!newStaffForm.name || !newStaffForm.username) return showToast("Lengkapi data!");
-    const id = `HI-${String(staffList.length + 1).padStart(3, '0')}`;
-    const newStaff = { ...newStaffForm, id };
-    setStaffList([...staffList, newStaff]);
-    setShowAddStaffModal(false);
-    setNewStaffForm({ name: '', username: '', password: '', division: 'Engineering', workType: 'Kantor', defaultLocation: 'Head Office' });
-    showToast("Karyawan berhasil ditambah!");
+    
+    // Generate ID unik berbasis jumlah staff
+    const { count } = await supabase.from('staff').select('*', { count: 'exact', head: true });
+    const id = `HI-${String((count || 0) + 1).padStart(3, '0')}`;
+    
+    const { error } = await supabase.from('staff').insert([{
+      id,
+      name: newStaffForm.name,
+      username: newStaffForm.username.toUpperCase(),
+      password: newStaffForm.password,
+      division: newStaffForm.division
+    }]);
+
+    if (error) {
+      showToast("Gagal menambah staff (Username mungkin sudah ada).");
+    } else {
+      showToast("Staff berhasil ditambahkan permanen!");
+      setShowAddStaffModal(false);
+      setNewStaffForm({ name: '', username: '', password: '', division: 'Engineering', workType: 'Kantor', defaultLocation: 'Head Office' });
+      fetchData();
+    }
   };
 
-  const handleDeleteStaff = (id) => {
-    if (confirm("Hapus karyawan ini?")) {
-      setStaffList(staffList.filter(s => s.id !== id));
-      showToast("Karyawan dihapus.");
+  const handleDeleteStaff = async (id) => {
+    if (confirm("Hapus karyawan ini secara permanen dari database?")) {
+      const { error } = await supabase.from('staff').delete().eq('id', id);
+      if (error) showToast("Gagal menghapus.");
+      else { showToast("Karyawan dihapus."); fetchData(); }
     }
   };
 
