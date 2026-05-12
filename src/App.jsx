@@ -16,12 +16,12 @@ import { supabase } from './lib/supabase';
 
 const DEFAULT_SETTINGS = { start: "08:00", tolerance: 10, end: "17:00", overtimeAfter: "17:30" };
 
-const getChartData = (records, settings) => {
+const getChartData = (records, settings, numDays = 7) => {
   const map = {};
   const d = new Date();
   const start = minutesOf(settings.start) + Number(settings.tolerance || 0);
 
-  for (let i = 6; i >= 0; i--) {
+  for (let i = numDays - 1; i >= 0; i--) {
     const day = new Date(d);
     day.setDate(day.getDate() - i);
     const y = day.getFullYear();
@@ -70,6 +70,7 @@ function App() {
   const [selectedStaff, setSelectedStaff] = useState(null); 
   const [selectedRequest, setSelectedRequest] = useState(null);
   const [detailList, setDetailList] = useState(null); 
+  const [chartDays, setChartDays] = useState(7); 
 
   const [manualForm, setManualForm] = useState({ staffId: '', checkIn: '08:00', checkOut: '', date: todayKey() });
   const [manualPhoto, setManualPhoto] = useState('');
@@ -399,9 +400,20 @@ function App() {
                           }} onMouseOver={e=>e.currentTarget.style.transform='translateY(-5px)'} onMouseOut={e=>e.currentTarget.style.transform='translateY(0)'}><div className="kpi-icon"><AlertCircle/></div><div className="kpi-value">{requests.filter(r=>r.status==='Menunggu').length}</div><div className="kpi-label">Butuh Approval</div></div>
                           <div className="card kpi-card"><div className="kpi-icon"><DollarSign/></div><div className="kpi-value">Mei</div><div className="kpi-label">Periode Aktif</div></div>
                         </div>
-                        <div className="card">
+                         <div className="card">
                           <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', flexWrap:'wrap', gap:'15px', marginBottom:'20px'}}>
-                            <h3>Tren Kehadiran 7 Hari Terakhir</h3>
+                            <div style={{display:'flex', alignItems:'center', gap:'12px'}}>
+                              <h3>Tren Kehadiran</h3>
+                              <select 
+                                value={chartDays} 
+                                onChange={e=>setChartDays(Number(e.target.value))} 
+                                style={{padding:'6px 12px', borderRadius:'8px', border:'1px solid #e2e8f0', background:'white', fontSize:'13px', outline:'none', cursor:'pointer', fontWeight:'500', color:'#475569'}}
+                              >
+                                <option value={7}>7 Hari Terakhir</option>
+                                <option value={14}>14 Hari Terakhir</option>
+                                <option value={30}>1 Bulan Terakhir</option>
+                              </select>
+                            </div>
                             <div className="mini-metrics" style={{margin:0}}>
                               <div className="mini-metric" style={{padding:'8px 15px', cursor:'pointer'}} onClick={() => {
                                 const data = records.slice(0, 20).map(r => ({ name: r.staff_name, detail: `Tgl: ${fmtDate(r.date)} • ${r.check_in}` }));
@@ -419,7 +431,7 @@ function App() {
                           </div>
                           <div style={{width:'100%', height: 320, marginTop: '10px'}}>
                             <ResponsiveContainer width="100%" height="100%">
-                              <AreaChart data={getChartData(records, settings)} margin={{ top: 10, right: 10, left: -25, bottom: 0 }}>
+                              <AreaChart data={getChartData(records, settings, chartDays)} margin={{ top: 10, right: 10, left: -25, bottom: 0 }}>
                                 <defs>
                                   <linearGradient id="colorHadir" x1="0" y1="0" x2="0" y2="1">
                                     <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.2}/>
