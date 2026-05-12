@@ -5,6 +5,7 @@ import {
   MapPin, AlertCircle, Search, Filter, MoreHorizontal,
   ChevronDown, Plus, Trash2, Send, DollarSign, CheckSquare, Upload, Image, Navigation, X, User, UserPlus, Info, Calendar, Heart, MessageSquare
 } from 'lucide-react';
+import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { ADMIN, DIVISIONS, LOCATIONS } from './data';
 import { 
   todayKey, nowTime, fmtDate, initials, 
@@ -14,6 +15,39 @@ import {
 import { supabase } from './lib/supabase';
 
 const DEFAULT_SETTINGS = { start: "08:00", tolerance: 10, end: "17:00", overtimeAfter: "17:30" };
+
+const getChartData = (records, settings) => {
+  const map = {};
+  const d = new Date();
+  const start = minutesOf(settings.start) + Number(settings.tolerance || 0);
+
+  for (let i = 6; i >= 0; i--) {
+    const day = new Date(d);
+    day.setDate(day.getDate() - i);
+    const y = day.getFullYear();
+    const m = String(day.getMonth() + 1).padStart(2, "0");
+    const da = String(day.getDate()).padStart(2, "0");
+    const key = `${y}-${m}-${da}`;
+    
+    map[key] = { 
+      date: key, 
+      display: day.toLocaleDateString('id-ID', {weekday:'short'}), 
+      Hadir: 0, 
+      Telat: 0 
+    };
+  }
+  
+  records.forEach(r => {
+    if (map[r.date]) {
+      const cin = minutesOf(r.check_in);
+      const isLate = cin !== null && cin > start;
+      if (isLate) map[r.date].Telat += 1;
+      else map[r.date].Hadir += 1;
+    }
+  });
+  
+  return Object.values(map).sort((a,b) => a.date.localeCompare(b.date));
+};
 
 function App() {
   const [currentUser, setCurrentUser] = useState(null);
@@ -359,12 +393,35 @@ function App() {
                           <div className="card kpi-card"><div className="kpi-icon"><DollarSign/></div><div className="kpi-value">Mei</div><div className="kpi-label">Periode Aktif</div></div>
                         </div>
                         <div className="card">
-                          <h3>Ringkasan Kehadiran Bulanan</h3>
-                          <div className="mini-metrics" style={{marginTop:'15px'}}>
-                            <div className="mini-metric"><b>{records.length}</b><span>Total Absensi</span></div>
-                            <div className="mini-metric"><b>{records.filter(r=>calcRecord(r).status==='Telat').length}</b><span>Total Telat</span></div>
-                            <div className="mini-metric"><b>{requests.filter(r=>r.status==='Disetujui').length}</b><span>Total Izin/Cuti</span></div>
-                            <div className="mini-metric"><b>98%</b><span>Health Rate</span></div>
+                          <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', flexWrap:'wrap', gap:'15px', marginBottom:'20px'}}>
+                            <h3>Tren Kehadiran 7 Hari Terakhir</h3>
+                            <div className="mini-metrics" style={{margin:0}}>
+                              <div className="mini-metric" style={{padding:'8px 15px'}}><b>{records.length}</b><span>Total Absensi</span></div>
+                              <div className="mini-metric" style={{padding:'8px 15px'}}><b>{records.filter(r=>calcRecord(r).status==='Telat').length}</b><span>Total Telat</span></div>
+                              <div className="mini-metric" style={{padding:'8px 15px'}}><b>{requests.filter(r=>r.status==='Disetujui').length}</b><span>Izin/Cuti</span></div>
+                            </div>
+                          </div>
+                          <div style={{width:'100%', height: 320, marginTop: '10px'}}>
+                            <ResponsiveContainer width="100%" height="100%">
+                              <AreaChart data={getChartData(records, settings)} margin={{ top: 10, right: 10, left: -25, bottom: 0 }}>
+                                <defs>
+                                  <linearGradient id="colorHadir" x1="0" y1="0" x2="0" y2="1">
+                                    <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.2}/>
+                                    <stop offset="95%" stopColor="#3b82f6" stopOpacity={0}/>
+                                  </linearGradient>
+                                  <linearGradient id="colorTelat" x1="0" y1="0" x2="0" y2="1">
+                                    <stop offset="5%" stopColor="#ef4444" stopOpacity={0.2}/>
+                                    <stop offset="95%" stopColor="#ef4444" stopOpacity={0}/>
+                                  </linearGradient>
+                                </defs>
+                                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(0,0,0,0.05)" />
+                                <XAxis dataKey="display" axisLine={false} tickLine={false} tick={{fill:'#94a3b8', fontSize:12}} dy={10} />
+                                <YAxis axisLine={false} tickLine={false} tick={{fill:'#94a3b8', fontSize:12}} />
+                                <Tooltip contentStyle={{background:'rgba(255,255,255,0.9)', borderRadius:'12px', border:'1px solid rgba(0,0,0,0.05)', boxShadow:'0 8px 30px rgba(0,0,0,0.12)', backdropFilter:'blur(10px)'}} />
+                                <Area type="monotone" dataKey="Hadir" stackId="1" stroke="#3b82f6" strokeWidth={3} fillOpacity={1} fill="url(#colorHadir)" />
+                                <Area type="monotone" dataKey="Telat" stackId="1" stroke="#ef4444" strokeWidth={3} fillOpacity={1} fill="url(#colorTelat)" />
+                              </AreaChart>
+                            </ResponsiveContainer>
                           </div>
                         </div>
                       </>
