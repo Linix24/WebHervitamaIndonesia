@@ -69,6 +69,7 @@ function App() {
   const [showAddStaffModal, setShowAddStaffModal] = useState(false);
   const [selectedStaff, setSelectedStaff] = useState(null); 
   const [selectedRequest, setSelectedRequest] = useState(null);
+  const [detailList, setDetailList] = useState(null); 
 
   const [manualForm, setManualForm] = useState({ staffId: '', checkIn: '08:00', checkOut: '', date: todayKey() });
   const [manualPhoto, setManualPhoto] = useState('');
@@ -388,17 +389,32 @@ function App() {
                       <>
                         <div className="grid kpi">
                           <div className="card kpi-card"><div className="kpi-icon"><Users/></div><div className="kpi-value">{staffList.length}</div><div className="kpi-label">Total Staff</div></div>
-                          <div className="card kpi-card"><div className="kpi-icon"><CheckCircle/></div><div className="kpi-value">{records.filter(r=>r.date===todayKey()).length}</div><div className="kpi-label">Hadir Hari Ini</div></div>
-                          <div className="card kpi-card"><div className="kpi-icon"><AlertCircle/></div><div className="kpi-value">{requests.filter(r=>r.status==='Menunggu').length}</div><div className="kpi-label">Butuh Approval</div></div>
+                          <div className="card kpi-card" style={{cursor:'pointer', transition:'0.2s', transform:'translateY(0)'}} onClick={() => {
+                            const data = records.filter(r=>r.date===todayKey()).map(r=>({ name: r.staff_name, detail: `Masuk: ${r.check_in || '-'}` }));
+                            setDetailList({ title: 'Hadir Hari Ini', data });
+                          }} onMouseOver={e=>e.currentTarget.style.transform='translateY(-5px)'} onMouseOut={e=>e.currentTarget.style.transform='translateY(0)'}><div className="kpi-icon"><CheckCircle/></div><div className="kpi-value">{records.filter(r=>r.date===todayKey()).length}</div><div className="kpi-label">Hadir Hari Ini</div></div>
+                          <div className="card kpi-card" style={{cursor:'pointer', transition:'0.2s', transform:'translateY(0)'}} onClick={() => {
+                            const data = requests.filter(r=>r.status==='Menunggu').map(r=>({ name: r.staff_name, detail: `${r.type} • ${fmtDate(r.date)}` }));
+                            setDetailList({ title: 'Butuh Approval', data });
+                          }} onMouseOver={e=>e.currentTarget.style.transform='translateY(-5px)'} onMouseOut={e=>e.currentTarget.style.transform='translateY(0)'}><div className="kpi-icon"><AlertCircle/></div><div className="kpi-value">{requests.filter(r=>r.status==='Menunggu').length}</div><div className="kpi-label">Butuh Approval</div></div>
                           <div className="card kpi-card"><div className="kpi-icon"><DollarSign/></div><div className="kpi-value">Mei</div><div className="kpi-label">Periode Aktif</div></div>
                         </div>
                         <div className="card">
                           <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', flexWrap:'wrap', gap:'15px', marginBottom:'20px'}}>
                             <h3>Tren Kehadiran 7 Hari Terakhir</h3>
                             <div className="mini-metrics" style={{margin:0}}>
-                              <div className="mini-metric" style={{padding:'8px 15px'}}><b>{records.length}</b><span>Total Absensi</span></div>
-                              <div className="mini-metric" style={{padding:'8px 15px'}}><b>{records.filter(r=>calcRecord(r).status==='Telat').length}</b><span>Total Telat</span></div>
-                              <div className="mini-metric" style={{padding:'8px 15px'}}><b>{requests.filter(r=>r.status==='Disetujui').length}</b><span>Izin/Cuti</span></div>
+                              <div className="mini-metric" style={{padding:'8px 15px', cursor:'pointer'}} onClick={() => {
+                                const data = records.slice(0, 20).map(r => ({ name: r.staff_name, detail: `Tgl: ${fmtDate(r.date)} • ${r.check_in}` }));
+                                setDetailList({ title: 'Total Absensi (20 Data Terakhir)', data });
+                              }}><b>{records.length}</b><span>Total Absensi</span></div>
+                              <div className="mini-metric" style={{padding:'8px 15px', cursor:'pointer'}} onClick={() => {
+                                const data = records.filter(r=>calcRecord(r).status==='Telat').slice(0, 20).map(r => ({ name: r.staff_name, detail: `Tgl: ${fmtDate(r.date)} • Telat: ${r.check_in}` }));
+                                setDetailList({ title: 'Rincian Telat', data });
+                              }}><b>{records.filter(r=>calcRecord(r).status==='Telat').length}</b><span>Total Telat</span></div>
+                              <div className="mini-metric" style={{padding:'8px 15px', cursor:'pointer'}} onClick={() => {
+                                const data = requests.filter(r=>r.status==='Disetujui').slice(0, 20).map(r => ({ name: r.staff_name, detail: `${r.type} • ${fmtDate(r.date)}` }));
+                                setDetailList({ title: 'Izin/Cuti Terakhir', data });
+                              }}><b>{requests.filter(r=>r.status==='Disetujui').length}</b><span>Izin/Cuti</span></div>
                             </div>
                           </div>
                           <div style={{width:'100%', height: 320, marginTop: '10px'}}>
@@ -671,6 +687,28 @@ function App() {
               <div className="field"><label>Alasan / Keterangan</label><div className="card" style={{background:'#f8faff', minHeight:'100px'}}>{selectedRequest.reason || "-"}</div></div>
             </div>
             <button className="btn primary full" style={{marginTop:'20px'}} onClick={()=>setSelectedRequest(null)}>Tutup Detail</button>
+          </div>
+        </div></div>
+      )}
+      {detailList && (
+        <div className="modal-backdrop"><div className="modal animate-in" style={{maxWidth:'450px'}}>
+          <div className="modal-head"><h3>{detailList.title}</h3><button className="btn ghost small" onClick={()=>setDetailList(null)}><X size={18}/></button></div>
+          <div className="modal-body" style={{maxHeight:'400px', overflowY:'auto', padding:'10px 20px'}}>
+            {detailList.data.length === 0 ? (
+              <div className="muted" style={{padding:'30px', textAlign:'center'}}>Tidak ada data yang ditemukan.</div>
+            ) : (
+              <div style={{display:'flex', flexDirection:'column', gap:'8px'}}>
+                {detailList.data.map((item, i) => (
+                  <div key={i} className="card" style={{display:'flex', justifyContent:'space-between', alignItems:'center', padding:'12px 15px', border:'1px solid #f0f0f0', background:'white', borderRadius:'12px'}}>
+                    <div>
+                      <b style={{fontSize:'14px'}}>{item.name}</b>
+                      <div style={{fontSize:'12px', color:'#64748b', marginTop:'2px'}}>{item.detail}</div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+            <button className="btn soft full" style={{marginTop:'20px'}} onClick={()=>setDetailList(null)}>Tutup</button>
           </div>
         </div></div>
       )}
