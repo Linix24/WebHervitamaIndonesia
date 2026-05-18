@@ -83,7 +83,7 @@ function App() {
   const manualGalRef = useRef(null);
 
   const [loginForm, setLoginForm] = useState({ username: '', password: '' });
-  const [attendanceForm, setAttendanceForm] = useState({ checkIn: '07:58', checkOut: '', project: '', workType: 'Lapangan', note: '' });
+  const [attendanceForm, setAttendanceForm] = useState({ checkIn: '', checkOut: '', project: 'WFO (Head Office)', workType: 'Kantor', note: '' });
   const [photo, setPhoto] = useState('');
   const [location, setLocation] = useState(null);
   const [requestForm, setRequestForm] = useState({ type: 'Cuti', date: todayKey(), reason: '' });
@@ -141,7 +141,7 @@ function App() {
 
     if (staff) {
       setCurrentUser(staff); setCurrentRole('staff'); setView('staff'); setTab('home');
-      setAttendanceForm(prev => ({ ...prev, project: 'Head Office' }));
+      setAttendanceForm(prev => ({ ...prev, project: 'WFO (Head Office)' }));
     } else {
       showToast("Akun tidak ditemukan atau password salah.");
     }
@@ -201,6 +201,9 @@ function App() {
     const existing = records.find(r => r.staff_id === currentUser.id && r.date === todayKey());
     const cin = attendanceForm.checkIn || nowTime();
     const cout = mode === 'out' ? (attendanceForm.checkOut || nowTime()) : (existing?.check_out || null);
+    
+    setAttendanceForm(prev => ({ ...prev, checkIn: cin, checkOut: cout || '' }));
+
     const payload = {
       staff_id: currentUser.id, staff_name: currentUser.name, date: todayKey(),
       check_in: existing?.check_in || cin, check_out: cout,
@@ -561,15 +564,37 @@ function App() {
                   {tab === 'attendance' && (
                     <div className="grid two">
                       <div className="card">
-                        <h3>Absensi Online</h3>
-                        <div className="form-stack">
-                          <div className="grid two">
-                            <div className="field"><label>Masuk</label><input type="time" value={attendanceForm.checkIn} onChange={e=>setAttendanceForm({...attendanceForm, checkIn:e.target.value})}/></div>
-                            <div className="field"><label>Pulang</label><input type="time" value={attendanceForm.checkOut} onChange={e=>setAttendanceForm({...attendanceForm, checkOut:e.target.value})}/></div>
+                        <div style={{display:'flex', justifyContent:'space-between', alignItems:'center'}}>
+                          <h3>Absensi Online</h3>
+                          <small className="muted">{new Date().toLocaleTimeString('id-ID', {hour:'2-digit', minute:'2-digit'})}</small>
+                        </div>
+                        <div className="form-stack" style={{marginTop:'15px'}}>
+                          <div className="field">
+                            <label>Tipe Kehadiran (Project)</label>
+                            <div className="btn-row">
+                               {['WFO (Head Office)', 'On-Project', 'Client Visit'].map(p => (
+                                  <button key={p} className={`btn ${attendanceForm.project === p ? 'primary' : 'soft'} small`} onClick={() => setAttendanceForm({...attendanceForm, project: p})}>{p}</button>
+                               ))}
+                            </div>
                           </div>
-                          <div className="field"><label>Project</label><input value={attendanceForm.project} onChange={e=>setAttendanceForm({...attendanceForm, project:e.target.value})}/></div>
-                          <div className="field"><label>Catatan</label><textarea value={attendanceForm.note} onChange={e=>setAttendanceForm({...attendanceForm, note:e.target.value})}/></div>
-                          <div className="btn-row"><button className="btn primary" onClick={()=>saveAttendance('in')}>Absen Masuk</button><button className="btn warning" onClick={()=>saveAttendance('out')}>Absen Pulang</button></div>
+                          <div className="grid two">
+                            <div className="field">
+                              <label>Masuk</label>
+                              <div style={{display:'flex', gap:'8px'}}>
+                                <input type="time" value={attendanceForm.checkIn} onChange={e=>setAttendanceForm({...attendanceForm, checkIn:e.target.value})} style={{flex:1}}/>
+                                <button className="btn soft" onClick={() => setAttendanceForm({...attendanceForm, checkIn: nowTime()})} title="Waktu Saat Ini"><Clock size={16}/></button>
+                              </div>
+                            </div>
+                            <div className="field">
+                              <label>Pulang</label>
+                              <div style={{display:'flex', gap:'8px'}}>
+                                <input type="time" value={attendanceForm.checkOut} onChange={e=>setAttendanceForm({...attendanceForm, checkOut:e.target.value})} style={{flex:1}}/>
+                                <button className="btn soft" onClick={() => setAttendanceForm({...attendanceForm, checkOut: nowTime()})} title="Waktu Saat Ini"><Clock size={16}/></button>
+                              </div>
+                            </div>
+                          </div>
+                          <div className="field"><label>Catatan Khusus (Opsional)</label><textarea placeholder="Tambahkan keterangan jika perlu..." value={attendanceForm.note} onChange={e=>setAttendanceForm({...attendanceForm, note:e.target.value})}/></div>
+                          <div className="btn-row" style={{marginTop:'10px'}}><button className="btn primary" onClick={()=>saveAttendance('in')}>🚀 Absen Masuk</button><button className="btn warning" onClick={()=>saveAttendance('out')}>👋 Absen Pulang</button></div>
                         </div>
                       </div>
                       <div className="grid">
