@@ -85,6 +85,8 @@ function App() {
   const [detailList, setDetailList] = useState(null); 
   const [chartDays, setChartDays] = useState(7); 
   const [chartType, setChartType] = useState('datang'); 
+  const [showMonthlyReport, setShowMonthlyReport] = useState(false);
+  const [reportSearch, setReportSearch] = useState('');
 
   const [manualForm, setManualForm] = useState({ staffId: '', checkIn: '08:00', checkOut: '', date: todayKey() });
   const [manualPhoto, setManualPhoto] = useState('');
@@ -415,7 +417,7 @@ function App() {
                             const data = requests.filter(r=>r.status==='Menunggu').map(r=>({ name: r.staff_name, detail: `${r.type} • ${fmtDate(r.date)}` }));
                             setDetailList({ title: 'Butuh Approval', data });
                           }} onMouseOver={e=>e.currentTarget.style.transform='translateY(-5px)'} onMouseOut={e=>e.currentTarget.style.transform='translateY(0)'}><div className="kpi-icon"><AlertCircle/></div><div className="kpi-value">{requests.filter(r=>r.status==='Menunggu').length}</div><div className="kpi-label">Butuh Approval</div></div>
-                          <div className="card kpi-card"><div className="kpi-icon"><DollarSign/></div><div className="kpi-value">Mei</div><div className="kpi-label">Periode Aktif</div></div>
+                          <div className="card kpi-card" style={{cursor:'pointer', transition:'0.2s', transform:'translateY(0)'}} onClick={() => { setShowMonthlyReport(true); setReportSearch(''); }} onMouseOver={e=>e.currentTarget.style.transform='translateY(-5px)'} onMouseOut={e=>e.currentTarget.style.transform='translateY(0)'}><div className="kpi-icon"><DollarSign/></div><div className="kpi-value">Mei</div><div className="kpi-label">Periode Aktif (Rekap)</div></div>
                         </div>
                          <div className="card">
                           <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', flexWrap:'wrap', gap:'15px', marginBottom:'20px'}}>
@@ -799,6 +801,93 @@ function App() {
             <button className="btn soft full" style={{marginTop:'20px'}} onClick={()=>setDetailList(null)}>Tutup</button>
           </div>
         </div></div>
+      )}
+      {showMonthlyReport && (
+        <div className="modal-backdrop" onClick={() => setShowMonthlyReport(false)}>
+          <div className="modal animate-in" onClick={e => e.stopPropagation()} style={{maxWidth: '850px', width: '95%', padding:'25px'}}>
+            <div className="modal-head" style={{borderBottom:'1px solid #e2e8f0', paddingBottom:'15px', marginBottom:'15px'}}>
+              <h3>Laporan Rekap Bulanan - Mei 2026</h3>
+              <button className="btn ghost small" onClick={() => setShowMonthlyReport(false)}><X size={18}/></button>
+            </div>
+            
+            <div style={{background:'#f8fafc', padding:'15px', borderRadius:'14px', border:'1px solid #e2e8f0', marginBottom:'15px', display:'flex', gap:'25px', flexWrap:'wrap', fontSize:'14px'}}>
+              <div><strong>Bulan Aktif:</strong> <span style={{color:'var(--brand)', fontWeight:'700'}}>Mei 2026</span></div>
+              <div><strong>Hari Kerja Efektif:</strong> <span style={{color:'#1e40af', fontWeight:'700'}}>17 Hari Kerja</span> <span style={{fontSize:'12px', color:'#64748b', marginLeft:'5px'}}>(Tanpa Akhir Pekan & Hari Libur Nasional)</span></div>
+            </div>
+
+            <div style={{marginBottom:'15px'}}>
+              <input 
+                type="text" 
+                placeholder="Cari karyawan berdasarkan nama..." 
+                value={reportSearch} 
+                onChange={e => setReportSearch(e.target.value)} 
+                style={{width:'100%', padding:'10px 16px', borderRadius:'12px', border:'1px solid #cbd5e1', outline:'none', fontSize:'14px', transition:'0.2s'}}
+              />
+            </div>
+            
+            <div style={{maxHeight:'350px', overflowY:'auto', border:'1px solid #e2e8f0', borderRadius:'14px', background:'#fff'}}>
+              <table style={{width:'100%', borderCollapse:'collapse', fontSize:'13px', textAlign:'left'}}>
+                <thead>
+                  <tr style={{background:'#f1f5f9', borderBottom:'2px solid #cbd5e1', color:'#475569', fontWeight:'700'}}>
+                    <th style={{padding:'12px 16px'}}>Nama Karyawan</th>
+                    <th style={{padding:'12px 16px', textAlign:'center'}}>Kehadiran</th>
+                    <th style={{padding:'12px 16px', textAlign:'center'}}>Hari Kerja</th>
+                    <th style={{padding:'12px 16px', textAlign:'center'}}>Persentase</th>
+                    <th style={{padding:'12px 16px', textAlign:'right'}}>Total Lembur</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {(() => {
+                    const filtered = staffList.filter(s => s.name.toLowerCase().includes(reportSearch.toLowerCase()));
+                    if (filtered.length === 0) {
+                      return (
+                        <tr>
+                          <td colSpan="5" style={{padding:'30px', textAlign:'center', color:'#64748b'}}>Karyawan tidak ditemukan.</td>
+                        </tr>
+                      );
+                    }
+                    return filtered.map((s, idx) => {
+                      const staffRecords = records.filter(r => r.staff_id === s.id && r.date.startsWith('2026-05'));
+                      const hadirCount = staffRecords.length;
+                      const workingDays = 17;
+                      const percentage = workingDays > 0 ? ((hadirCount / workingDays) * 100).toFixed(0) : 0;
+                      
+                      const totalOvertimeMins = staffRecords.reduce((acc, r) => acc + calcRecord(r).overtimeMins, 0);
+                      const overtimeCount = staffRecords.filter(r => calcRecord(r).overtimeMins > 0).length;
+                      
+                      return (
+                        <tr key={s.id} style={{borderBottom:'1px solid #f1f5f9', background: idx % 2 === 0 ? '#ffffff' : '#f8fafc'}}>
+                          <td style={{padding:'12px 16px', fontWeight:'600', color:'#1e293b'}}>{s.name}</td>
+                          <td style={{padding:'12px 16px', textAlign:'center', color:'#1e40af', fontWeight:'600'}}>{hadirCount} Hari</td>
+                          <td style={{padding:'12px 16px', textAlign:'center', color:'#475569'}}>{workingDays} Hari</td>
+                          <td style={{padding:'12px 16px', textAlign:'center'}}>
+                            <span style={{
+                              padding:'4px 10px', 
+                              borderRadius:'20px', 
+                              fontSize:'11px', 
+                              fontWeight:'700',
+                              background: percentage >= 80 ? '#dcfce7' : percentage >= 50 ? '#fef9c3' : '#fee2e2',
+                              color: percentage >= 80 ? '#15803d' : percentage >= 50 ? '#a16207' : '#b91c1c'
+                            }}>
+                              {percentage}%
+                            </span>
+                          </td>
+                          <td style={{padding:'12px 16px', textAlign:'right', fontWeight:'600', color: overtimeCount > 0 ? '#15803d' : '#64748b'}}>
+                            {overtimeCount > 0 ? `${overtimeCount}x (${durationLabel(totalOvertimeMins)})` : '-'}
+                          </td>
+                        </tr>
+                      );
+                    });
+                  })()}
+                </tbody>
+              </table>
+            </div>
+            
+            <div style={{marginTop:'20px', display:'flex', justifyContent:'flex-end'}}>
+              <button className="btn soft" onClick={() => setShowMonthlyReport(false)} style={{padding:'8px 20px'}}>Tutup Laporan</button>
+            </div>
+          </div>
+        </div>
       )}
       {toast.show && <div className="toast show animate-in" style={{zIndex: 2000}}>{toast.message}</div>}
     </>
