@@ -461,6 +461,13 @@ function App() {
                                 const data = requests.filter(r=>r.status==='Disetujui').slice(0, 20).map(r => ({ name: r.staff_name, detail: `${r.type} • ${fmtDate(r.date)}` }));
                                 setDetailList({ title: 'Izin/Cuti Terakhir', data });
                               }}><b>{requests.filter(r=>r.status==='Disetujui').length}</b><span>Izin/Cuti</span></div>
+                              <div className="mini-metric" style={{padding:'8px 15px', cursor:'pointer'}} onClick={() => {
+                                const data = records.filter(r=>calcRecord(r).overtimeMins > 0).slice(0, 20).map(r => {
+                                  const calc = calcRecord(r);
+                                  return { name: r.staff_name, detail: `Tgl: ${fmtDate(r.date)} • Durasi: ${durationLabel(calc.overtimeMins)} (Pulang: ${r.check_out})` };
+                                });
+                                setDetailList({ title: 'Karyawan Lembur (20 Data Terakhir)', data });
+                              }}><b>{records.filter(r=>calcRecord(r).overtimeMins > 0).length}</b><span>Total Lembur</span></div>
                             </div>
                           </div>
                           <div style={{width:'100%', height: 320, marginTop: '10px'}}>
