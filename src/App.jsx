@@ -31,7 +31,7 @@ const getChartData = (records, settings, numDays = 7) => {
     
     map[key] = { 
       date: key, 
-      display: day.toLocaleDateString('id-ID', {weekday:'short'}), 
+      display: numDays > 7 ? `${day.getDate()} ${day.toLocaleDateString('id-ID', {month:'short'})}` : day.toLocaleDateString('id-ID', {weekday:'short'}), 
       Hadir: 0, 
       Telat: 0 
     };
@@ -449,8 +449,8 @@ function App() {
                                 <XAxis dataKey="display" axisLine={false} tickLine={false} tick={{fill:'#94a3b8', fontSize:12}} dy={10} />
                                 <YAxis axisLine={false} tickLine={false} tick={{fill:'#94a3b8', fontSize:12}} />
                                 <Tooltip contentStyle={{background:'rgba(255,255,255,0.9)', borderRadius:'12px', border:'1px solid rgba(0,0,0,0.05)', boxShadow:'0 8px 30px rgba(0,0,0,0.12)', backdropFilter:'blur(10px)'}} />
-                                <Area type="monotone" dataKey="Hadir" stackId="1" stroke="#3b82f6" strokeWidth={3} fillOpacity={1} fill="url(#colorHadir)" />
-                                <Area type="monotone" dataKey="Telat" stackId="1" stroke="#ef4444" strokeWidth={3} fillOpacity={1} fill="url(#colorTelat)" />
+                                <Area type="monotone" dataKey="Hadir" stroke="#3b82f6" strokeWidth={3} fillOpacity={1} fill="url(#colorHadir)" />
+                                <Area type="monotone" dataKey="Telat" stroke="#ef4444" strokeWidth={3} fillOpacity={1} fill="url(#colorTelat)" />
                               </AreaChart>
                             </ResponsiveContainer>
                           </div>
