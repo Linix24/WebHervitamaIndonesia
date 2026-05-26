@@ -33,16 +33,29 @@ const getChartData = (records, settings, numDays = 7) => {
       date: key, 
       display: numDays > 7 ? `${day.getDate()} ${day.toLocaleDateString('id-ID', {month:'short'})}` : day.toLocaleDateString('id-ID', {weekday:'short'}), 
       Hadir: 0, 
-      Telat: 0 
+      Telat: 0,
+      PulangNormal: 0,
+      Lembur: 0
     };
   }
   
   records.forEach(r => {
     if (map[r.date]) {
+      // Presensi Datang
       const cin = minutesOf(r.check_in);
       const isLate = cin !== null && cin > start;
       if (isLate) map[r.date].Telat += 1;
-      else map[r.date].Hadir += 1;
+      else if (cin !== null) map[r.date].Hadir += 1;
+
+      // Presensi Pulang
+      if (r.check_out) {
+        const cout = minutesOf(r.check_out);
+        const end = minutesOf(settings.end);
+        const overtimeStart = minutesOf(settings.overtimeAfter);
+        const isOvertime = cout !== null && cout >= overtimeStart;
+        if (isOvertime) map[r.date].Lembur += 1;
+        else map[r.date].PulangNormal += 1;
+      }
     }
   });
   
@@ -71,6 +84,7 @@ function App() {
   const [selectedRequest, setSelectedRequest] = useState(null);
   const [detailList, setDetailList] = useState(null); 
   const [chartDays, setChartDays] = useState(7); 
+  const [chartType, setChartType] = useState('datang'); 
 
   const [manualForm, setManualForm] = useState({ staffId: '', checkIn: '08:00', checkOut: '', date: todayKey() });
   const [manualPhoto, setManualPhoto] = useState('');
@@ -405,7 +419,7 @@ function App() {
                         </div>
                          <div className="card">
                           <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', flexWrap:'wrap', gap:'15px', marginBottom:'20px'}}>
-                            <div style={{display:'flex', alignItems:'center', gap:'12px'}}>
+                            <div style={{display:'flex', alignItems:'center', gap:'12px', flexWrap:'wrap'}}>
                               <h3>Tren Kehadiran</h3>
                               <select 
                                 value={chartDays} 
@@ -416,6 +430,23 @@ function App() {
                                 <option value={14}>14 Hari Terakhir</option>
                                 <option value={30}>1 Bulan Terakhir</option>
                               </select>
+                              
+                              <div style={{margin: 0, padding: '2px', background: '#f1f5f9', borderRadius: '10px', display: 'inline-flex', border: '1px solid #e2e8f0'}}>
+                                <button 
+                                  className={`btn ${chartType === 'datang' ? 'primary' : 'ghost'} small`} 
+                                  onClick={() => setChartType('datang')}
+                                  style={{padding: '5px 12px', borderRadius: '8px', fontSize: '12px', border:'none', boxShadow: chartType === 'datang' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none', background: chartType === 'datang' ? 'var(--brand)' : 'transparent', color: chartType === 'datang' ? 'white' : '#64748b'}}
+                                >
+                                  Presensi Datang
+                                </button>
+                                <button 
+                                  className={`btn ${chartType === 'pulang' ? 'primary' : 'ghost'} small`} 
+                                  onClick={() => setChartType('pulang')}
+                                  style={{padding: '5px 12px', borderRadius: '8px', fontSize: '12px', border:'none', boxShadow: chartType === 'pulang' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none', background: chartType === 'pulang' ? 'var(--brand)' : 'transparent', color: chartType === 'pulang' ? 'white' : '#64748b'}}
+                                >
+                                  Presensi Pulang
+                                </button>
+                              </div>
                             </div>
                             <div className="mini-metrics" style={{margin:0}}>
                               <div className="mini-metric" style={{padding:'8px 15px', cursor:'pointer'}} onClick={() => {
@@ -444,13 +475,26 @@ function App() {
                                     <stop offset="5%" stopColor="#ef4444" stopOpacity={0.2}/>
                                     <stop offset="95%" stopColor="#ef4444" stopOpacity={0}/>
                                   </linearGradient>
+                                  <linearGradient id="colorLembur" x1="0" y1="0" x2="0" y2="1">
+                                    <stop offset="5%" stopColor="#22c55e" stopOpacity={0.2}/>
+                                    <stop offset="95%" stopColor="#22c55e" stopOpacity={0}/>
+                                  </linearGradient>
                                 </defs>
                                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(0,0,0,0.05)" />
                                 <XAxis dataKey="display" axisLine={false} tickLine={false} tick={{fill:'#94a3b8', fontSize:12}} dy={10} />
                                 <YAxis axisLine={false} tickLine={false} tick={{fill:'#94a3b8', fontSize:12}} />
                                 <Tooltip contentStyle={{background:'rgba(255,255,255,0.9)', borderRadius:'12px', border:'1px solid rgba(0,0,0,0.05)', boxShadow:'0 8px 30px rgba(0,0,0,0.12)', backdropFilter:'blur(10px)'}} />
-                                <Area type="monotone" dataKey="Hadir" stroke="#3b82f6" strokeWidth={3} fillOpacity={1} fill="url(#colorHadir)" />
-                                <Area type="monotone" dataKey="Telat" stroke="#ef4444" strokeWidth={3} fillOpacity={1} fill="url(#colorTelat)" />
+                                {chartType === 'datang' ? (
+                                  <>
+                                    <Area name="Tepat Waktu" type="monotone" dataKey="Hadir" stroke="#3b82f6" strokeWidth={3} fillOpacity={1} fill="url(#colorHadir)" />
+                                    <Area name="Terlambat" type="monotone" dataKey="Telat" stroke="#ef4444" strokeWidth={3} fillOpacity={1} fill="url(#colorTelat)" />
+                                  </>
+                                ) : (
+                                  <>
+                                    <Area name="Pulang Standar" type="monotone" dataKey="PulangNormal" stroke="#3b82f6" strokeWidth={3} fillOpacity={1} fill="url(#colorHadir)" />
+                                    <Area name="Lembur" type="monotone" dataKey="Lembur" stroke="#22c55e" strokeWidth={3} fillOpacity={1} fill="url(#colorLembur)" />
+                                  </>
+                                )}
                               </AreaChart>
                             </ResponsiveContainer>
                           </div>
