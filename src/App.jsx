@@ -19,10 +19,17 @@ const DEFAULT_SETTINGS = { start: "08:00", tolerance: 10, end: "17:00", overtime
 const parseReason = (reasonStr) => {
   try {
     if (reasonStr && reasonStr.trim().startsWith('{')) {
-      return JSON.parse(reasonStr);
+      const parsed = JSON.parse(reasonStr);
+      return {
+        title: parsed.title || '',
+        description: parsed.description || '',
+        attachment: parsed.attachment || '',
+        revisionNote: parsed.revisionNote || '',
+        isRevised: !!parsed.isRevised
+      };
     }
   } catch (e) {}
-  return { title: '', description: reasonStr || '', attachment: '' };
+  return { title: '', description: reasonStr || '', attachment: '', revisionNote: '', isRevised: false };
 };
 
 
@@ -93,6 +100,9 @@ function App() {
   const [selectedStaff, setSelectedStaff] = useState(null); 
   const [selectedRequest, setSelectedRequest] = useState(null);
   const [detailList, setDetailList] = useState(null); 
+  const [editingRequest, setEditingRequest] = useState(null);
+  const [showRevisionModal, setShowRevisionModal] = useState(null);
+  const [revisionInput, setRevisionInput] = useState('');
   const [chartDays, setChartDays] = useState(7); 
   const [chartType, setChartType] = useState('datang'); 
   const [showMonthlyReport, setShowMonthlyReport] = useState(false);
@@ -309,9 +319,19 @@ function App() {
     reader.readAsDataURL(file);
   };
 
-  const updateRequestStatus = async (id, status) => {
-    await supabase.from('requests').update({ status }).eq('id', id);
-    showToast(`Request ${status}!`); fetchData();
+  const updateRequestStatus = async (id, status, revisionNote = '') => {
+    if (status === 'Revisi') {
+      const { data: req } = await supabase.from('requests').select('reason').eq('id', id).single();
+      if (req) {
+        const parsed = parseReason(req.reason);
+        parsed.revisionNote = revisionNote;
+        parsed.isRevised = false;
+        await supabase.from('requests').update({ status, reason: JSON.stringify(parsed) }).eq('id', id);
+      }
+    } else {
+      await supabase.from('requests').update({ status }).eq('id', id);
+    }
+    showToast(`Request ${status === 'Revisi' ? 'Revisi Diminta' : status}!`); fetchData();
   };
 
   const getStaffStats = (staffId) => {
@@ -585,18 +605,29 @@ function App() {
                               <div>
                                 <div className="card-title" style={{marginBottom:'12px'}}>
                                   <div>
-                                    <b>{r.staff_name}</b>
-                                    <br/>
+                                    <div style={{display:'flex', alignItems:'center', gap:'8px', flexWrap:'wrap'}}>
+                                      <b>{r.staff_name}</b>
+                                      {parsed.isRevised && (
+                                        <span className="status-pill hadir" style={{fontSize:'10px', padding:'2px 8px', fontWeight:'700'}}>✨ Telah Direvisi</span>
+                                      )}
+                                    </div>
                                     <small style={{fontSize:'12px', color:'#4b5563', fontWeight:'600'}}>
                                       {r.type === 'Lainnya' ? `Lainnya: ${parsed.title || 'Tanpa Judul'}` : r.type} • {fmtDate(r.date)}
                                     </small>
                                   </div>
-                                  <span className={`status-pill ${r.status==='Disetujui'?'hadir':r.status==='Ditolak'?'merah':'menunggu'}`}>{r.status}</span>
+                                  <span className={`status-pill ${r.status==='Disetujui'?'hadir':r.status==='Ditolak'?'merah':r.status==='Revisi'?'telat':'menunggu'}`}>{r.status}</span>
                                 </div>
                                 
                                 <p style={{margin: '10px 0 15px 0', fontSize:'14px', whiteSpace:'pre-wrap', color:'#1e293b', background:'#f8fafc', padding:'12px', borderRadius:'10px', border:'1px solid #f1f5f9'}}>
                                   {parsed.description || "-"}
                                 </p>
+                                
+                                {parsed.revisionNote && (
+                                  <div style={{marginTop:'10px', marginBottom:'15px', background:'#fffbeb', padding:'10px', borderRadius:'12px', border:'1px solid #fed7aa'}}>
+                                    <b style={{fontSize:'11px', display:'block', marginBottom:'3px', color:'#b45309', fontWeight:'700'}}>💬 Catatan Masukan Revisi:</b>
+                                    <span style={{fontSize:'12px', color:'#78350f', fontStyle:'italic'}}>{parsed.revisionNote}</span>
+                                  </div>
+                                )}
                                 
                                 {parsed.attachment && (
                                   <div style={{marginTop:'10px', marginBottom:'15px', background:'#f8fafc', padding:'10px', borderRadius:'12px', border:'1px dashed #cbd5e1'}}>
@@ -622,8 +653,12 @@ function App() {
                               </div>
 
                               {r.status==='Menunggu' && (
-                                <div className="btn-row" style={{marginTop:'12px'}}>
+                                <div className="btn-row" style={{marginTop:'12px', gap:'8px'}}>
                                   <button className="btn success" style={{flex:1}} onClick={()=>updateRequestStatus(r.id,'Disetujui')}>Setujui</button>
+                                  <button className="btn warning" style={{flex:1}} onClick={()=>{
+                                    setShowRevisionModal(r);
+                                    setRevisionInput('');
+                                  }}>Revisi</button>
                                   <button className="btn danger" style={{flex:1}} onClick={()=>updateRequestStatus(r.id,'Ditolak')}>Tolak</button>
                                 </div>
                               )}
@@ -745,7 +780,16 @@ function App() {
                   {tab === 'request' && (
                     <div className="grid two">
                       <div className="card">
-                        <h3>Kirim Pengajuan</h3>
+                        <h3>{editingRequest ? '✏️ Revisi Pengajuan' : 'Kirim Pengajuan'}</h3>
+                        {editingRequest && (() => {
+                          const parsed = parseReason(editingRequest.reason);
+                          return (
+                            <div style={{background:'#fee2e2', borderLeft:'4px solid #ef4444', padding:'12px 15px', borderRadius:'10px', fontSize:'13px', color:'#991b1b', marginBottom:'15px', lineHeight:'1.5'}}>
+                              <b style={{display:'flex', alignItems:'center', gap:'6px'}}><AlertCircle size={14} /> Catatan Revisi Admin:</b>
+                              <p style={{margin:'5px 0 0 0', fontStyle:'italic'}}>{parsed.revisionNote || 'Mohon diperbaiki sesuai instruksi admin.'}</p>
+                            </div>
+                          );
+                        })()}
                         <div className="form-stack">
                           <div className="field">
                             <label>Tipe Pengajuan</label>
@@ -842,46 +886,74 @@ function App() {
                             )}
                           </div>
 
-                          <button 
-                            className="btn primary full" 
-                            style={{marginTop:'10px'}}
-                            onClick={async () => {
-                              if (requestForm.type === 'Lainnya' && !requestTitle) {
-                                return showToast("Judul pengajuan wajib diisi!");
-                              }
-                              if (!requestForm.reason) {
-                                return showToast("Keterangan wajib diisi!");
-                              }
+                          <div className="btn-row" style={{marginTop:'12px', gap:'10px'}}>
+                            {editingRequest && (
+                              <button 
+                                className="btn ghost" 
+                                style={{flex: 1}}
+                                onClick={() => {
+                                  setEditingRequest(null);
+                                  setRequestForm({ type: 'Cuti', date: todayKey(), reason: '' });
+                                  setRequestTitle('');
+                                  setRequestAttachment('');
+                                }}
+                              >
+                                ❌ Batal
+                              </button>
+                            )}
+                            <button 
+                              className="btn primary" 
+                              style={{flex: 2}}
+                              onClick={async () => {
+                                if (requestForm.type === 'Lainnya' && !requestTitle) {
+                                  return showToast("Judul pengajuan wajib diisi!");
+                                }
+                                if (!requestForm.reason) {
+                                  return showToast("Keterangan wajib diisi!");
+                                }
 
-                              const finalReason = JSON.stringify({
-                                title: requestForm.type === 'Lainnya' ? requestTitle : '',
-                                description: requestForm.reason,
-                                attachment: requestAttachment || ''
-                              });
+                                const originalParsed = editingRequest ? parseReason(editingRequest.reason) : {};
+                                const finalReason = JSON.stringify({
+                                  title: requestForm.type === 'Lainnya' ? requestTitle : '',
+                                  description: requestForm.reason,
+                                  attachment: requestAttachment || '',
+                                  revisionNote: originalParsed.revisionNote || '',
+                                  isRevised: !!editingRequest
+                                });
 
-                              const payload = {
-                                staff_id: currentUser.id,
-                                staff_name: currentUser.name,
-                                type: requestForm.type,
-                                date: requestForm.date,
-                                reason: finalReason,
-                                status: 'Menunggu'
-                              };
+                                const payload = {
+                                  staff_id: currentUser.id,
+                                  staff_name: currentUser.name,
+                                  type: requestForm.type,
+                                  date: requestForm.date,
+                                  reason: finalReason,
+                                  status: 'Menunggu'
+                                };
 
-                              const { error } = await supabase.from('requests').insert([payload]);
-                              if (error) {
-                                showToast("Gagal mengirim pengajuan.");
-                              } else {
-                                showToast("Pengajuan berhasil dikirim!");
-                                setRequestForm({ type: 'Cuti', date: todayKey(), reason: '' });
-                                setRequestTitle('');
-                                setRequestAttachment('');
-                                fetchData();
-                              }
-                            }}
-                          >
-                            🚀 Kirim Pengajuan
-                          </button>
+                                let error;
+                                if (editingRequest) {
+                                  const { error: err } = await supabase.from('requests').update(payload).eq('id', editingRequest.id);
+                                  error = err;
+                                } else {
+                                  const { error: err } = await supabase.from('requests').insert([payload]);
+                                  error = err;
+                                }
+
+                                if (error) {
+                                  showToast(editingRequest ? "Gagal memperbarui pengajuan." : "Gagal mengirim pengajuan.");
+                                } else {
+                                  showToast(editingRequest ? "Pengajuan berhasil direvisi!" : "Pengajuan berhasil dikirim!");
+                                  setEditingRequest(null);
+                                  setRequestForm({ type: 'Cuti', date: todayKey(), reason: '' });
+                                  setRequestTitle('');
+                                  setRequestAttachment('');
+                                  fetchData();
+                                }
+                              }}
+                            >
+                              {editingRequest ? '💾 Simpan Revisi Pengajuan' : '🚀 Kirim Pengajuan'}
+                            </button>
+                          </div>
                         </div>
                       </div>
                       <div className="card">
@@ -893,8 +965,28 @@ function App() {
                                 <b>{r.type}</b>
                                 <small>{fmtDate(r.date)}</small>
                               </div>
-                              <div className="request-actions">
-                                <span className={`status-pill ${r.status==='Disetujui'?'hadir':r.status==='Ditolak'?'merah':'menunggu'}`}>{r.status}</span>
+                              <div className="request-actions" style={{display:'flex', alignItems:'center', gap:'6px'}}>
+                                <span className={`status-pill ${r.status==='Disetujui'?'hadir':r.status==='Ditolak'?'merah':r.status==='Revisi'?'telat':'menunggu'}`}>{r.status}</span>
+                                {r.status === 'Revisi' && (
+                                  <button 
+                                    className="btn soft small" 
+                                    onClick={() => {
+                                      setEditingRequest(r);
+                                      const parsed = parseReason(r.reason);
+                                      setRequestForm({ type: r.type, date: r.date, reason: parsed.description });
+                                      if (r.type === 'Lainnya') {
+                                        setRequestTitle(parsed.title);
+                                      }
+                                      setRequestAttachment(parsed.attachment || '');
+                                      window.scrollTo({ top: 0, behavior: 'smooth' });
+                                      showToast("Formulir revisi siap diisi!");
+                                    }}
+                                    style={{padding:'4px 10px', fontSize:'11px', fontWeight:'700', borderRadius:'20px', background:'#fef9c3', color:'#a16207', border:'1px solid #fef08a'}}
+                                    title="Klik untuk merevisi pengajuan ini"
+                                  >
+                                    ✏️ Revisi
+                                  </button>
+                                )}
                                 <button className="btn ghost small" onClick={() => setSelectedRequest(r)}><Info size={14}/></button>
                               </div>
                             </div>
@@ -989,9 +1081,18 @@ function App() {
                 <button className="btn ghost small" onClick={()=>setSelectedRequest(null)}><X size={18}/></button>
               </div>
               <div className="modal-body">
-                <div style={{marginBottom:'20px'}}>
-                  <span className={`status-pill ${selectedRequest.status==='Disetujui'?'hadir':selectedRequest.status==='Ditolak'?'merah':'menunggu'}`}>{selectedRequest.status}</span>
+                <div style={{marginBottom:'20px', display:'flex', gap:'8px', alignItems:'center'}}>
+                  <span className={`status-pill ${selectedRequest.status==='Disetujui'?'hadir':selectedRequest.status==='Ditolak'?'merah':selectedRequest.status==='Revisi'?'telat':'menunggu'}`}>{selectedRequest.status}</span>
+                  {parsed.isRevised && (
+                    <span className="status-pill hadir" style={{fontSize:'11px', padding:'3px 8px', fontWeight:'700'}}>✨ Telah Direvisi</span>
+                  )}
                 </div>
+                {selectedRequest.status === 'Revisi' && parsed.revisionNote && (
+                  <div style={{background:'#fffbeb', borderLeft:'4px solid #d97706', padding:'12px', borderRadius:'8px', fontSize:'13px', color:'#92400e', marginBottom:'15px', lineHeight:'1.4'}}>
+                    <b>💬 Catatan Revisi Admin:</b>
+                    <p style={{margin:'4px 0 0 0', fontStyle:'italic'}}>{parsed.revisionNote}</p>
+                  </div>
+                )}
                 <div className="form-stack">
                   <div className="field">
                     <label>Jenis Pengajuan</label>
@@ -1141,6 +1242,47 @@ function App() {
             
             <div style={{marginTop:'20px', display:'flex', justifyContent:'flex-end'}}>
               <button className="btn soft" onClick={() => setShowMonthlyReport(false)} style={{padding:'8px 20px'}}>Tutup Laporan</button>
+            </div>
+          </div>
+        </div>
+      )}
+      {showRevisionModal && (
+        <div className="modal-backdrop" onClick={()=>setShowRevisionModal(null)}>
+          <div className="modal animate-in" onClick={e=>e.stopPropagation()} style={{maxWidth:'500px'}}>
+            <div className="modal-head">
+              <h3>Minta Revisi Pengajuan</h3>
+              <button className="btn ghost small" onClick={()=>setShowRevisionModal(null)}><X size={18}/></button>
+            </div>
+            <div className="modal-body">
+              <div style={{background:'#fff9f0', borderLeft:'4px solid #f59e0b', padding:'12px', borderRadius:'10px', fontSize:'13px', color:'#78350f', marginBottom:'20px', lineHeight:'1.5'}}>
+                Anda meminta <b>{showRevisionModal.staff_name}</b> untuk merevisi pengajuannya (<b>{showRevisionModal.type}</b>). Tuliskan catatan feedback spesifik di bawah ini.
+              </div>
+              <div className="field" style={{marginBottom:'20px'}}>
+                <label style={{fontWeight:'700', fontSize:'13px', color:'#475569', display:'block', marginBottom:'8px'}}>Catatan Feedback Revisi (Wajib)</label>
+                <textarea 
+                  placeholder="Contoh: Mohon lampirkan foto struk pembayaran bensin yang lebih jelas dan terbaca..." 
+                  value={revisionInput}
+                  onChange={e=>setRevisionInput(e.target.value)}
+                  style={{minHeight:'100px', width:'100%', padding:'12px', border:'1px solid #cbd5e1', borderRadius:'12px', outline:'none', fontSize:'14px', lineHeight:'1.5'}}
+                />
+              </div>
+              <div className="btn-row" style={{display:'flex', gap:'10px'}}>
+                <button className="btn ghost" style={{flex:1}} onClick={()=>setShowRevisionModal(null)}>Batal</button>
+                <button 
+                  className="btn warning" 
+                  style={{flex:2, background:'#f59e0b', color:'white', border:'none', borderRadius:'10px', padding:'10px 16px', fontWeight:'700', cursor:'pointer'}} 
+                  onClick={async () => {
+                    if (!revisionInput.trim()) {
+                      return showToast("Tuliskan catatan revisi terlebih dahulu!");
+                    }
+                    await updateRequestStatus(showRevisionModal.id, 'Revisi', revisionInput);
+                    setShowRevisionModal(null);
+                    setRevisionInput('');
+                  }}
+                >
+                  🚀 Kirim Permintaan Revisi
+                </button>
+              </div>
             </div>
           </div>
         </div>
