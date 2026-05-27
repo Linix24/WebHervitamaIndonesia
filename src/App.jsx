@@ -16,6 +16,16 @@ import { supabase } from './lib/supabase';
 
 const DEFAULT_SETTINGS = { start: "08:00", tolerance: 10, end: "17:00", overtimeAfter: "17:30" };
 
+const parseReason = (reasonStr) => {
+  try {
+    if (reasonStr && reasonStr.trim().startsWith('{')) {
+      return JSON.parse(reasonStr);
+    }
+  } catch (e) {}
+  return { title: '', description: reasonStr || '', attachment: '' };
+};
+
+
 const getChartData = (records, settings, numDays = 7) => {
   const map = {};
   const d = new Date();
@@ -97,12 +107,17 @@ function App() {
   const galleryInputRef = useRef(null);
   const manualCamRef = useRef(null);
   const manualGalRef = useRef(null);
+  const requestFileRef = useRef(null);
+
 
   const [loginForm, setLoginForm] = useState({ username: '', password: '' });
   const [attendanceForm, setAttendanceForm] = useState({ checkIn: '', checkOut: '', project: 'WFO (Head Office)', workType: 'Kantor', note: '' });
   const [photo, setPhoto] = useState('');
   const [location, setLocation] = useState(null);
   const [requestForm, setRequestForm] = useState({ type: 'Cuti', date: todayKey(), reason: '' });
+  const [requestTitle, setRequestTitle] = useState('');
+  const [requestAttachment, setRequestAttachment] = useState('');
+
 
   const fetchData = async () => {
     setLoading(true);
@@ -282,6 +297,16 @@ function App() {
       if (error) showToast("Gagal menghapus.");
       else { showToast("Karyawan dihapus."); fetchData(); }
     }
+  };
+
+  const handleRequestFileChange = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      setRequestAttachment(reader.result);
+    };
+    reader.readAsDataURL(file);
   };
 
   const updateRequestStatus = async (id, status) => {
@@ -553,7 +578,58 @@ function App() {
                     )}
                     {tab === 'approval' && (
                       <div className="grid">
-                        {requests.map(r=>(<div key={r.id} className="card"><div className="card-title"><div><b>{r.staff_name}</b><br/><small>{r.type} • {fmtDate(r.date)}</small></div><span className={`status-pill ${r.status==='Disetujui'?'hadir':r.status==='Ditolak'?'merah':'menunggu'}`}>{r.status}</span></div><p>{r.reason}</p>{r.status==='Menunggu' && <div className="btn-row"><button className="btn success" onClick={()=>updateRequestStatus(r.id,'Disetujui')}>Setujui</button><button className="btn danger" onClick={()=>updateRequestStatus(r.id,'Ditolak')}>Tolak</button></div>}</div>))}
+                        {requests.map(r => {
+                          const parsed = parseReason(r.reason);
+                          return (
+                            <div key={r.id} className="card" style={{display:'flex', flexDirection:'column', justifyContent:'space-between'}}>
+                              <div>
+                                <div className="card-title" style={{marginBottom:'12px'}}>
+                                  <div>
+                                    <b>{r.staff_name}</b>
+                                    <br/>
+                                    <small style={{fontSize:'12px', color:'#4b5563', fontWeight:'600'}}>
+                                      {r.type === 'Lainnya' ? `Lainnya: ${parsed.title || 'Tanpa Judul'}` : r.type} • {fmtDate(r.date)}
+                                    </small>
+                                  </div>
+                                  <span className={`status-pill ${r.status==='Disetujui'?'hadir':r.status==='Ditolak'?'merah':'menunggu'}`}>{r.status}</span>
+                                </div>
+                                
+                                <p style={{margin: '10px 0 15px 0', fontSize:'14px', whiteSpace:'pre-wrap', color:'#1e293b', background:'#f8fafc', padding:'12px', borderRadius:'10px', border:'1px solid #f1f5f9'}}>
+                                  {parsed.description || "-"}
+                                </p>
+                                
+                                {parsed.attachment && (
+                                  <div style={{marginTop:'10px', marginBottom:'15px', background:'#f8fafc', padding:'10px', borderRadius:'12px', border:'1px dashed #cbd5e1'}}>
+                                    <b style={{fontSize:'11px', display:'block', marginBottom:'5px', color:'#475569', fontWeight:'700'}}>📎 Lampiran Dokumen / Bukti:</b>
+                                    {parsed.attachment.startsWith('data:image/') ? (
+                                      <img 
+                                        src={parsed.attachment} 
+                                        style={{maxHeight:'150px', borderRadius:'8px', border:'1px solid #cbd5e1', cursor:'pointer', display:'block', margin:'0 auto'}} 
+                                        onClick={() => {
+                                          const w = window.open();
+                                          w.document.write(`<img src="${parsed.attachment}" style="max-width:100%; max-height:100vh; display:block; margin:auto; border-radius:10px; box-shadow:0 4px 12px rgba(0,0,0,0.15);" />`);
+                                        }}
+                                        title="Klik untuk memperbesar gambar"
+                                        alt="Bukti Lampiran"
+                                      />
+                                    ) : (
+                                      <a href={parsed.attachment} download={`lampiran-${r.staff_name}`} className="btn soft small full" style={{display:'flex', justifyContent:'center', alignItems:'center', gap:'6px', padding:'8px'}}>
+                                        📄 Unduh Dokumen Pendukung
+                                      </a>
+                                    )}
+                                  </div>
+                                )}
+                              </div>
+
+                              {r.status==='Menunggu' && (
+                                <div className="btn-row" style={{marginTop:'12px'}}>
+                                  <button className="btn success" style={{flex:1}} onClick={()=>updateRequestStatus(r.id,'Disetujui')}>Setujui</button>
+                                  <button className="btn danger" style={{flex:1}} onClick={()=>updateRequestStatus(r.id,'Ditolak')}>Tolak</button>
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })}
                         {requests.length === 0 && <div className="empty">Tidak ada pengajuan.</div>}
                       </div>
                     )}
@@ -668,7 +744,146 @@ function App() {
                   )}
                   {tab === 'request' && (
                     <div className="grid two">
-                      <div className="card"><h3>Kirim Pengajuan</h3><div className="form-stack"><div className="field"><label>Tipe</label><select value={requestForm.type} onChange={e=>setRequestForm({...requestForm, type:e.target.value})}><option>Cuti</option><option>Izin</option><option>Sakit</option></select></div><div className="field"><label>Tanggal</label><input type="date" value={requestForm.date} onChange={e=>setRequestForm({...requestForm, date:e.target.value})}/></div><div className="field"><label>Alasan</label><textarea value={requestForm.reason} onChange={e=>setRequestForm({...requestForm, reason:e.target.value})}/></div><button className="btn primary full" onClick={async()=>{await supabase.from('requests').insert([{...requestForm, staff_id:currentUser.id, staff_name:currentUser.name, status:'Menunggu'}]); showToast("Terkirim!"); fetchData();}}>Kirim</button></div></div>
+                      <div className="card">
+                        <h3>Kirim Pengajuan</h3>
+                        <div className="form-stack">
+                          <div className="field">
+                            <label>Tipe Pengajuan</label>
+                            <select 
+                              value={requestForm.type} 
+                              onChange={e => {
+                                const newType = e.target.value;
+                                setRequestForm({ ...requestForm, type: newType });
+                                if (newType !== 'Lainnya') {
+                                  setRequestTitle('');
+                                }
+                              }}
+                            >
+                              <option value="Cuti">Cuti</option>
+                              <option value="Izin">Izin</option>
+                              <option value="Sakit">Sakit</option>
+                              <option value="Lainnya">Lainnya (e.g. Reimbursement, Dinas, dll.)</option>
+                            </select>
+                          </div>
+                          
+                          {requestForm.type === 'Lainnya' && (
+                            <div className="field animate-in">
+                              <label>Judul Pengajuan</label>
+                              <input 
+                                type="text" 
+                                placeholder="Contoh: Reimburse Bensin Survey Cilegon" 
+                                value={requestTitle} 
+                                onChange={e => setRequestTitle(e.target.value)} 
+                              />
+                            </div>
+                          )}
+
+                          <div className="field">
+                            <label>Tanggal</label>
+                            <input 
+                              type="date" 
+                              value={requestForm.date} 
+                              onChange={e => setRequestForm({ ...requestForm, date: e.target.value })} 
+                            />
+                          </div>
+
+                          <div className="field">
+                            <label>{requestForm.type === 'Lainnya' ? 'Deskripsi Detail' : 'Alasan / Keterangan'}</label>
+                            <textarea 
+                              placeholder={requestForm.type === 'Lainnya' ? 'Tuliskan deskripsi lengkap, rincian biaya, atau keperluan lainnya...' : 'Tuliskan alasan pengajuan Anda secara ringkas...'} 
+                              value={requestForm.reason} 
+                              onChange={e => setRequestForm({ ...requestForm, reason: e.target.value })} 
+                            />
+                          </div>
+
+                          <div className="field">
+                            <label>Unggah Bukti / Lampiran (Opsional)</label>
+                            <div style={{display:'flex', gap:'8px', alignItems:'center'}}>
+                              <button 
+                                className="btn soft" 
+                                style={{flex: 1, padding:'10px', display:'flex', justifyContent:'center', alignItems:'center', gap:'8px'}} 
+                                onClick={() => requestFileRef.current.click()}
+                              >
+                                <Upload size={16} /> 
+                                {requestAttachment ? 'Ganti Lampiran' : 'Pilih File / Foto Bukti'}
+                              </button>
+                              {requestAttachment && (
+                                <button 
+                                  className="btn danger ghost small" 
+                                  onClick={() => setRequestAttachment('')} 
+                                  title="Hapus Lampiran"
+                                  style={{padding:'10px'}}
+                                >
+                                  <X size={16} />
+                                </button>
+                              )}
+                            </div>
+                            <input 
+                              type="file" 
+                              accept="image/*,application/pdf" 
+                              style={{display:'none'}} 
+                              ref={requestFileRef} 
+                              onChange={handleRequestFileChange} 
+                            />
+                            {requestAttachment && (
+                              <div style={{marginTop:'12px', border:'1px dashed #e2e8f0', borderRadius:'14px', padding:'12px', background:'#f8fafc'}}>
+                                {requestAttachment.startsWith('data:image/') ? (
+                                  <img 
+                                    src={requestAttachment} 
+                                    style={{maxHeight:'120px', borderRadius:'8px', display:'block', margin:'0 auto', border:'1px solid #cbd5e1'}} 
+                                    alt="Preview" 
+                                  />
+                                ) : (
+                                  <div style={{textAlign:'center', fontSize:'12px', color:'#475569', fontWeight:'600'}}>
+                                    📄 Dokumen Terpilih
+                                  </div>
+                                )}
+                              </div>
+                            )}
+                          </div>
+
+                          <button 
+                            className="btn primary full" 
+                            style={{marginTop:'10px'}}
+                            onClick={async () => {
+                              if (requestForm.type === 'Lainnya' && !requestTitle) {
+                                return showToast("Judul pengajuan wajib diisi!");
+                              }
+                              if (!requestForm.reason) {
+                                return showToast("Keterangan wajib diisi!");
+                              }
+
+                              const finalReason = JSON.stringify({
+                                title: requestForm.type === 'Lainnya' ? requestTitle : '',
+                                description: requestForm.reason,
+                                attachment: requestAttachment || ''
+                              });
+
+                              const payload = {
+                                staff_id: currentUser.id,
+                                staff_name: currentUser.name,
+                                type: requestForm.type,
+                                date: requestForm.date,
+                                reason: finalReason,
+                                status: 'Menunggu'
+                              };
+
+                              const { error } = await supabase.from('requests').insert([payload]);
+                              if (error) {
+                                showToast("Gagal mengirim pengajuan.");
+                              } else {
+                                showToast("Pengajuan berhasil dikirim!");
+                                setRequestForm({ type: 'Cuti', date: todayKey(), reason: '' });
+                                setRequestTitle('');
+                                setRequestAttachment('');
+                                fetchData();
+                              }
+                            }}
+                          >
+                            🚀 Kirim Pengajuan
+                          </button>
+                        </div>
+                      </div>
                       <div className="card">
                         <h3>Riwayat Pengajuan</h3>
                         <div className="request-list">
@@ -764,22 +979,63 @@ function App() {
           </div>
         </div></div>
       )}
-      {selectedRequest && (
-        <div className="modal-backdrop"><div className="modal animate-in" style={{maxWidth:'500px'}}>
-          <div className="modal-head"><h3>Detail Pengajuan</h3><button className="btn ghost small" onClick={()=>setSelectedRequest(null)}><X size={18}/></button></div>
-          <div className="modal-body">
-            <div style={{marginBottom:'20px'}}>
-              <span className={`status-pill ${selectedRequest.status==='Disetujui'?'hadir':selectedRequest.status==='Ditolak'?'merah':'menunggu'}`}>{selectedRequest.status}</span>
+      {selectedRequest && (() => {
+        const parsed = parseReason(selectedRequest.reason);
+        return (
+          <div className="modal-backdrop" onClick={()=>setSelectedRequest(null)}>
+            <div className="modal animate-in" onClick={e=>e.stopPropagation()} style={{maxWidth:'500px'}}>
+              <div className="modal-head">
+                <h3>Detail Pengajuan</h3>
+                <button className="btn ghost small" onClick={()=>setSelectedRequest(null)}><X size={18}/></button>
+              </div>
+              <div className="modal-body">
+                <div style={{marginBottom:'20px'}}>
+                  <span className={`status-pill ${selectedRequest.status==='Disetujui'?'hadir':selectedRequest.status==='Ditolak'?'merah':'menunggu'}`}>{selectedRequest.status}</span>
+                </div>
+                <div className="form-stack">
+                  <div className="field">
+                    <label>Jenis Pengajuan</label>
+                    <div className="card" style={{background:'#f8faff', borderRadius:'14px'}}>
+                      <b>{selectedRequest.type === 'Lainnya' ? `Lainnya: ${parsed.title || 'Tanpa Judul'}` : selectedRequest.type}</b>
+                    </div>
+                  </div>
+                  <div className="field"><label>Tanggal Pelaksanaan</label><div className="card" style={{background:'#f8faff', borderRadius:'14px'}}><b>{fmtDate(selectedRequest.date)}</b></div></div>
+                  
+                  <div className="field">
+                    <label>{selectedRequest.type === 'Lainnya' ? 'Deskripsi Detail' : 'Alasan / Keterangan'}</label>
+                    <div className="card" style={{background:'#f8faff', minHeight:'100px', whiteSpace:'pre-wrap', borderRadius:'14px', lineHeight:'1.5', padding:'15px'}}>{parsed.description || "-"}</div>
+                  </div>
+                  
+                  {parsed.attachment && (
+                    <div className="field">
+                      <label>Lampiran / Dokumen Pendukung</label>
+                      <div className="card" style={{background:'#f8faff', display:'flex', flexDirection:'column', alignItems:'center', padding:'15px', borderRadius:'14px', border:'1px dashed #cbd5e1'}}>
+                        {parsed.attachment.startsWith('data:image/') ? (
+                          <img 
+                            src={parsed.attachment} 
+                            style={{maxHeight:'200px', borderRadius:'10px', border:'1px solid #cbd5e1', cursor:'pointer', boxShadow:'0 2px 8px rgba(0,0,0,0.06)'}} 
+                            onClick={() => {
+                              const w = window.open();
+                              w.document.write(`<img src="${parsed.attachment}" style="max-width:100%; max-height:100vh; display:block; margin:auto; border-radius:10px;" />`);
+                            }}
+                            title="Klik untuk memperbesar gambar"
+                            alt="Bukti Lampiran"
+                          />
+                        ) : (
+                          <a href={parsed.attachment} download={`lampiran-${selectedRequest.staff_name || 'pengajuan'}`} className="btn soft full" style={{display:'flex', justifyContent:'center', alignItems:'center', gap:'8px', padding:'12px', fontSize:'14px'}}>
+                            📄 Unduh Dokumen Pendukung
+                          </a>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
+                <button className="btn primary full" style={{marginTop:'25px'}} onClick={()=>setSelectedRequest(null)}>Tutup Detail</button>
+              </div>
             </div>
-            <div className="form-stack">
-              <div className="field"><label>Jenis Pengajuan</label><div className="card" style={{background:'#f8faff'}}><b>{selectedRequest.type}</b></div></div>
-              <div className="field"><label>Tanggal Pelaksanaan</label><div className="card" style={{background:'#f8faff'}}><b>{fmtDate(selectedRequest.date)}</b></div></div>
-              <div className="field"><label>Alasan / Keterangan</label><div className="card" style={{background:'#f8faff', minHeight:'100px'}}>{selectedRequest.reason || "-"}</div></div>
-            </div>
-            <button className="btn primary full" style={{marginTop:'20px'}} onClick={()=>setSelectedRequest(null)}>Tutup Detail</button>
           </div>
-        </div></div>
-      )}
+        );
+      })()}
       {detailList && (
         <div className="modal-backdrop"><div className="modal animate-in" style={{maxWidth:'450px'}}>
           <div className="modal-head"><h3>{detailList.title}</h3><button className="btn ghost small" onClick={()=>setDetailList(null)}><X size={18}/></button></div>
