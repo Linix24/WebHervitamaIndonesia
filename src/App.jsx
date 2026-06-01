@@ -112,7 +112,10 @@ function App() {
   const [chartType, setChartType] = useState('datang'); 
   const [showMonthlyReport, setShowMonthlyReport] = useState(false);
   const [reportSearch, setReportSearch] = useState('');
-  const [reportMonth, setReportMonth] = useState('2026-05');
+  
+  const currentD = new Date();
+  const initMonth = `${currentD.getFullYear()}-${String(currentD.getMonth() + 1).padStart(2, '0')}`;
+  const [reportMonth, setReportMonth] = useState(initMonth);
 
   const [manualForm, setManualForm] = useState({ staffId: '', checkIn: '08:00', checkOut: '', date: todayKey() });
   const [manualPhoto, setManualPhoto] = useState('');
@@ -575,7 +578,7 @@ function App() {
                             const data = requests.filter(r=>r.status==='Menunggu').map(r=>({ name: r.staff_name, detail: `${r.type} • ${fmtDate(r.date)}` }));
                             setDetailList({ title: 'Butuh Approval', data });
                           }} onMouseOver={e=>e.currentTarget.style.transform='translateY(-5px)'} onMouseOut={e=>e.currentTarget.style.transform='translateY(0)'}><div className="kpi-icon"><AlertCircle/></div><div className="kpi-value">{requests.filter(r=>r.status==='Menunggu').length}</div><div className="kpi-label">Butuh Approval</div></div>
-                          <div className="card kpi-card" style={{cursor:'pointer', transition:'0.2s', transform:'translateY(0)'}} onClick={() => { setShowMonthlyReport(true); setReportSearch(''); }} onMouseOver={e=>e.currentTarget.style.transform='translateY(-5px)'} onMouseOut={e=>e.currentTarget.style.transform='translateY(0)'}><div className="kpi-icon"><DollarSign/></div><div className="kpi-value">Mei</div><div className="kpi-label">Periode Aktif (Rekap)</div></div>
+                          <div className="card kpi-card" style={{cursor:'pointer', transition:'0.2s', transform:'translateY(0)'}} onClick={() => { setShowMonthlyReport(true); setReportSearch(''); }} onMouseOver={e=>e.currentTarget.style.transform='translateY(-5px)'} onMouseOut={e=>e.currentTarget.style.transform='translateY(0)'}><div className="kpi-icon"><DollarSign/></div><div className="kpi-value">{new Date().toLocaleString('id-ID', { month: 'long' })}</div><div className="kpi-label">Periode Aktif (Rekap)</div></div>
                         </div>
                          <div className="card">
                           <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', flexWrap:'wrap', gap:'15px', marginBottom:'20px'}}>
