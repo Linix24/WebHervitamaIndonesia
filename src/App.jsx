@@ -112,6 +112,7 @@ function App() {
   const [chartType, setChartType] = useState('datang'); 
   const [showMonthlyReport, setShowMonthlyReport] = useState(false);
   const [reportSearch, setReportSearch] = useState('');
+  const [reportMonth, setReportMonth] = useState('2026-05');
 
   const [manualForm, setManualForm] = useState({ staffId: '', checkIn: '08:00', checkOut: '', date: todayKey() });
   const [manualPhoto, setManualPhoto] = useState('');
@@ -368,11 +369,9 @@ function App() {
   const pdfChartRef = useRef(null);
 
   const handleDownloadExcel = () => {
-    const d = new Date();
-    const y = d.getFullYear();
-    const m = String(d.getMonth() + 1).padStart(2, '0');
-    const monthPrefix = `${y}-${m}`;
-    const daysInMonth = new Date(y, d.getMonth() + 1, 0).getDate();
+    const [y, m] = reportMonth.split('-');
+    const monthPrefix = reportMonth;
+    const daysInMonth = new Date(y, parseInt(m), 0).getDate();
     
     const excelData = staffList.map((s, i) => {
       const row = { No: i + 1, Nama: s.name, Divisi: s.division };
@@ -423,8 +422,8 @@ function App() {
 
   const handleDownloadPDF = async () => {
     const doc = new jsPDF('landscape', 'mm', 'a4');
+    const monthPrefix = reportMonth;
     const d = new Date();
-    const monthPrefix = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
     
     doc.setFontSize(22);
     doc.setTextColor(30, 64, 175);
@@ -1331,7 +1330,17 @@ function App() {
         <div className="modal-backdrop" onClick={() => setShowMonthlyReport(false)}>
           <div className="modal animate-in" onClick={e => e.stopPropagation()} style={{maxWidth: '850px', width: '95%', padding:'25px'}}>
             <div className="modal-head" style={{borderBottom:'1px solid #e2e8f0', paddingBottom:'15px', marginBottom:'15px', display:'flex', justifyContent:'space-between', alignItems:'center'}}>
-              <h3 style={{margin:0}}>Laporan Rekap Bulanan - Mei 2026</h3>
+              <div style={{display:'flex', alignItems:'center', gap:'15px'}}>
+                <h3 style={{margin:0}}>Laporan Rekap Bulanan</h3>
+                <select 
+                  value={reportMonth} 
+                  onChange={e => setReportMonth(e.target.value)}
+                  style={{padding:'6px 12px', borderRadius:'8px', border:'1px solid #cbd5e1', outline:'none', fontWeight:'600', color:'var(--brand)', background:'#fff'}}
+                >
+                  <option value="2026-05">Mei 2026</option>
+                  <option value="2026-06">Juni 2026</option>
+                </select>
+              </div>
               <div style={{display:'flex', gap:'10px', alignItems:'center'}}>
                 <button 
                   onClick={handleDownloadExcel} 
@@ -1356,7 +1365,7 @@ function App() {
             <div ref={pdfChartRef} style={{background:'#f8fafc', padding:'15px', borderRadius:'14px', border:'1px solid #e2e8f0', marginBottom:'15px', display:'flex', gap:'25px', flexWrap:'wrap', fontSize:'14px', alignItems:'center'}}>
               <div style={{flex:1, minWidth:'200px'}}>
                 <div style={{color:'#64748b', fontSize:'12px', fontWeight:'600', textTransform:'uppercase', letterSpacing:'1px', marginBottom:'4px'}}>Bulan Aktif</div>
-                <div style={{color:'var(--brand)', fontWeight:'800', fontSize:'24px'}}>Mei 2026</div>
+                <div style={{color:'var(--brand)', fontWeight:'800', fontSize:'24px'}}>{reportMonth === '2026-05' ? 'Mei 2026' : 'Juni 2026'}</div>
               </div>
               <div style={{flex:1, minWidth:'200px'}}>
                 <div style={{color:'#64748b', fontSize:'12px', fontWeight:'600', textTransform:'uppercase', letterSpacing:'1px', marginBottom:'4px'}}>Hari Kerja Efektif</div>
@@ -1400,8 +1409,8 @@ function App() {
                       );
                     }
                     return filtered.map((s, idx) => {
-                      const staffRecords = records.filter(r => r.staff_id === s.id && r.date.startsWith('2026-05'));
-                      const hadirCount = staffRecords.length;
+                      const staffRecords = records.filter(r => r.staff_id === s.id && r.date.startsWith(reportMonth));
+                      const hadirCount = staffRecords.filter(r => ['Hadir', 'Lembur', 'Telat'].includes(calcRecord(r).status)).length;
                       const workingDays = 17;
                       const percentage = workingDays > 0 ? ((hadirCount / workingDays) * 100).toFixed(0) : 0;
                       
