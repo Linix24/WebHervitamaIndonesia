@@ -369,6 +369,11 @@ function App() {
     return c.status === statusFilter;
   });
     
+  const activeDaysInMonth = new Set(records.filter(r => r.date.startsWith(reportMonth)).map(r => r.date)).size;
+  const activeStaffInMonth = new Set(records.filter(r => r.date.startsWith(reportMonth)).map(r => r.staff_id)).size;
+  const displayWorkingDays = activeDaysInMonth > 0 ? activeDaysInMonth : 21;
+  const displayActiveStaff = activeStaffInMonth > 0 ? activeStaffInMonth : staffList.length;
+
   const pdfChartRef = useRef(null);
 
   const handleDownloadExcel = () => {
@@ -1332,8 +1337,8 @@ function App() {
       {showMonthlyReport && (
         <div className="modal-backdrop" onClick={() => setShowMonthlyReport(false)}>
           <div className="modal animate-in" onClick={e => e.stopPropagation()} style={{maxWidth: '850px', width: '95%', padding:'25px'}}>
-            <div className="modal-head" style={{borderBottom:'1px solid #e2e8f0', paddingBottom:'15px', marginBottom:'15px', display:'flex', justifyContent:'space-between', alignItems:'center'}}>
-              <div style={{display:'flex', alignItems:'center', gap:'15px'}}>
+            <div className="modal-head" style={{borderBottom:'1px solid #e2e8f0', paddingBottom:'15px', marginBottom:'20px', display:'flex', justifyContent:'space-between', alignItems:'center', flexWrap:'wrap', gap:'15px'}}>
+              <div style={{display:'flex', alignItems:'center', gap:'15px', flexWrap:'wrap'}}>
                 <h3 style={{margin:0}}>Laporan Rekap Bulanan</h3>
                 <select 
                   value={reportMonth} 
@@ -1365,18 +1370,18 @@ function App() {
               </div>
             </div>
             
-            <div ref={pdfChartRef} style={{background:'#f8fafc', padding:'15px', borderRadius:'14px', border:'1px solid #e2e8f0', marginBottom:'15px', display:'flex', gap:'25px', flexWrap:'wrap', fontSize:'14px', alignItems:'center'}}>
-              <div style={{flex:1, minWidth:'200px'}}>
-                <div style={{color:'#64748b', fontSize:'12px', fontWeight:'600', textTransform:'uppercase', letterSpacing:'1px', marginBottom:'4px'}}>Bulan Aktif</div>
-                <div style={{color:'var(--brand)', fontWeight:'800', fontSize:'24px'}}>{reportMonth === '2026-05' ? 'Mei 2026' : 'Juni 2026'}</div>
+            <div ref={pdfChartRef} style={{background:'#f8fafc', padding:'20px', borderRadius:'14px', border:'1px solid #e2e8f0', marginBottom:'20px', display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(200px, 1fr))', gap:'20px', alignItems:'center'}}>
+              <div>
+                <div style={{color:'#64748b', fontSize:'12px', fontWeight:'700', textTransform:'uppercase', letterSpacing:'1px', marginBottom:'6px'}}>Bulan Aktif</div>
+                <div style={{color:'var(--brand)', fontWeight:'800', fontSize:'26px', lineHeight:'1'}}>{reportMonth === '2026-05' ? 'Mei 2026' : (reportMonth === '2026-06' ? 'Juni 2026' : reportMonth)}</div>
               </div>
-              <div style={{flex:1, minWidth:'200px'}}>
-                <div style={{color:'#64748b', fontSize:'12px', fontWeight:'600', textTransform:'uppercase', letterSpacing:'1px', marginBottom:'4px'}}>Hari Kerja Efektif</div>
-                <div style={{color:'#1e40af', fontWeight:'800', fontSize:'24px'}}>17 Hari <span style={{fontSize:'12px', color:'#94a3b8', fontWeight:'500'}}>(Tanpa Akhir Pekan & Libur)</span></div>
+              <div style={{borderLeft:'2px solid #e2e8f0', paddingLeft:'20px'}}>
+                <div style={{color:'#64748b', fontSize:'12px', fontWeight:'700', textTransform:'uppercase', letterSpacing:'1px', marginBottom:'6px'}}>Hari Kerja Efektif</div>
+                <div style={{color:'#1e40af', fontWeight:'800', fontSize:'26px', lineHeight:'1'}}>{displayWorkingDays} Hari <span style={{fontSize:'13px', color:'#94a3b8', fontWeight:'600'}}>(Berdasarkan Riwayat)</span></div>
               </div>
-              <div style={{flex:1, minWidth:'200px'}}>
-                <div style={{color:'#64748b', fontSize:'12px', fontWeight:'600', textTransform:'uppercase', letterSpacing:'1px', marginBottom:'4px'}}>Total Staf Aktif</div>
-                <div style={{color:'#0f172a', fontWeight:'800', fontSize:'24px'}}>{staffList.length} <span style={{fontSize:'12px', color:'#94a3b8', fontWeight:'500'}}>Orang</span></div>
+              <div style={{borderLeft:'2px solid #e2e8f0', paddingLeft:'20px'}}>
+                <div style={{color:'#64748b', fontSize:'12px', fontWeight:'700', textTransform:'uppercase', letterSpacing:'1px', marginBottom:'6px'}}>Total Staf Aktif</div>
+                <div style={{color:'#0f172a', fontWeight:'800', fontSize:'26px', lineHeight:'1'}}>{displayActiveStaff} <span style={{fontSize:'13px', color:'#94a3b8', fontWeight:'600'}}>Orang</span></div>
               </div>
             </div>
 
@@ -1414,7 +1419,7 @@ function App() {
                     return filtered.map((s, idx) => {
                       const staffRecords = records.filter(r => r.staff_id === s.id && r.date.startsWith(reportMonth));
                       const hadirCount = staffRecords.filter(r => ['Hadir', 'Lembur', 'Telat'].includes(calcRecord(r).status)).length;
-                      const workingDays = 17;
+                      const workingDays = displayWorkingDays;
                       const percentage = workingDays > 0 ? ((hadirCount / workingDays) * 100).toFixed(0) : 0;
                       
                       const totalOvertimeMins = staffRecords.reduce((acc, r) => acc + calcRecord(r).overtimeMins, 0);
