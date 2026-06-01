@@ -63,16 +63,22 @@ export const DIVISIONS = [
 ];
 export const LOCATIONS = ["Kantor Pusat", "Project Site", "Workshop", "Client Site", "Remote/Dinas"];
 
+const hrNames = ['Fifin Andriyani', 'Ibnu Hafasi Setyawan', 'Muzamil', 'Arin Windhana', 'Totok Purwoko', 'Alfian Daris Pratama', 'Irawan', 'Joni Prasetyo', 'Bagus Subianto', 'Muhammad Safiulloh', 'Widhiworo Tantri', 'Ramadhan Kurnia Akbar', 'Rian Khosy Riswanda', 'Anisya Agustina Lutvianti', 'Imam Suharyanto', 'Hidayat Soediyatno', 'Ahmad Kosasih Surahman', 'Ari Luki Ambarsari', 'Safika Nur Izzah', 'Wawan Setiawan', 'Arief Gunawan'];
+const salesNames = ['Haddy Handratno', 'Setio Sunarko', 'Danny Setiawan', 'Dwi Cahyono Putra', 'Aldilah Desel', 'Rony Wijaya', 'Dody Bagus Prayogo', 'Imam Cahyanuar Rizal', 'Annisa Trias Widoanti', 'Vilma Wahyu Sholikin', 'Fabian Bagaskara Sugiharto', 'Devi Indah Kurniawati'];
+
 export const STAFF = RAW_STAFF_NAMES.map((name, idx) => {
   const no = String(idx + 1).padStart(3, "0");
-  const isHrName = name.toLowerCase().includes("fifin");
+  let division = "Engineering";
+  if (hrNames.includes(name)) division = "Finance & HR";
+  else if (salesNames.includes(name)) division = "Sales & Marketing";
+
   return {
     no: idx + 1,
     id: "HI-" + no,
     username: "HI-" + no,
     password: "PW-" + no,
     name,
-    division: isHrName ? "Finance & HR" : DIVISIONS[idx % DIVISIONS.length],
+    division,
     workType: idx % 5 === 0 ? "Kantor" : (idx % 3 === 0 ? "Mobile / Campuran" : "Lapangan"),
     defaultLocation: LOCATIONS[idx % LOCATIONS.length]
   };

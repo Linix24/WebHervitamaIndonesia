@@ -3,7 +3,7 @@ import {
   Home, Camera, ClipboardList, History, Users, 
   Activity, Settings, LogOut, CheckCircle, Clock, 
   MapPin, AlertCircle, Search, Filter, MoreHorizontal,
-  ChevronDown, Plus, Trash2, Send, DollarSign, CheckSquare, Upload, Image, Navigation, X, User, UserPlus, Info, Calendar, Heart, MessageSquare
+  ChevronDown, Plus, Trash2, Send, DollarSign, CheckSquare, Upload, Image, Navigation, X, User, UserPlus, Info, Calendar, Heart, MessageSquare, Download
 } from 'lucide-react';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { ADMIN, DIVISIONS, LOCATIONS } from './data';
@@ -13,6 +13,10 @@ import {
   makePhotoData, makeDemoLocation 
 } from './utils';
 import { supabase } from './lib/supabase';
+import * as XLSX from 'xlsx';
+import { jsPDF } from 'jspdf';
+import 'jspdf-autotable';
+import html2canvas from 'html2canvas';
 
 const DEFAULT_SETTINGS = { start: "08:00", tolerance: 10, end: "17:00", overtimeAfter: "17:30" };
 
@@ -102,6 +106,7 @@ function App() {
   const [detailList, setDetailList] = useState(null); 
   const [editingRequest, setEditingRequest] = useState(null);
   const [showRevisionModal, setShowRevisionModal] = useState(null);
+  const [showStaffOvertimeModal, setShowStaffOvertimeModal] = useState(false);
   const [revisionInput, setRevisionInput] = useState('');
   const [chartDays, setChartDays] = useState(7); 
   const [chartType, setChartType] = useState('datang'); 
@@ -359,6 +364,115 @@ function App() {
     const c = calcRecord(r);
     return c.status === statusFilter;
   });
+    
+  const pdfChartRef = useRef(null);
+
+  const handleDownloadExcel = () => {
+    const d = new Date();
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const monthPrefix = `${y}-${m}`;
+    const daysInMonth = new Date(y, d.getMonth() + 1, 0).getDate();
+    
+    const excelData = staffList.map((s, i) => {
+      const row = { No: i + 1, Nama: s.name, Divisi: s.division };
+      let hadir = 0, sakit = 0, cuti = 0, terlambat = 0, lemburMins = 0;
+      
+      for (let day = 1; day <= daysInMonth; day++) {
+        const dateStr = `${monthPrefix}-${String(day).padStart(2, '0')}`;
+        const dateObj = new Date(dateStr);
+        const isWeekend = dateObj.getDay() === 0 || dateObj.getDay() === 6;
+        
+        const rec = records.find(r => r.staff_id === s.id && r.date === dateStr);
+        if (rec) {
+          const calc = calcRecord(rec);
+          if (calc.status === 'Hadir' || calc.status === 'Lembur' || calc.status === 'Telat') {
+            row[day] = '✓';
+            hadir++;
+            if (calc.lateMins > 0) terlambat++;
+            if (calc.overtimeMins > 0) lemburMins += calc.overtimeMins;
+          } else if (calc.status.includes('Sakit')) {
+            row[day] = 'S';
+            sakit++;
+          } else if (calc.status.includes('Cuti')) {
+            row[day] = 'C';
+            cuti++;
+          } else {
+             row[day] = 'H';
+             hadir++;
+          }
+        } else {
+          row[day] = isWeekend ? 'L' : '-';
+        }
+      }
+      row['Hadir'] = hadir;
+      row['Sakit'] = sakit;
+      row['Cuti'] = cuti;
+      row['Terlambat'] = terlambat;
+      row['Lembur (Jam)'] = (lemburMins / 60).toFixed(1);
+      row['Persentase (%)'] = Math.round((hadir / 22) * 100) + '%';
+      
+      return row;
+    });
+
+    const worksheet = XLSX.utils.json_to_sheet(excelData);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, `Rekap ${monthPrefix}`);
+    XLSX.writeFile(workbook, `Absen_Karyawan_${monthPrefix}.xlsx`);
+  };
+
+  const handleDownloadPDF = async () => {
+    const doc = new jsPDF('landscape', 'mm', 'a4');
+    const d = new Date();
+    const monthPrefix = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+    
+    doc.setFontSize(22);
+    doc.setTextColor(30, 64, 175);
+    doc.text(`Laporan Rekap Bulanan HRIS - ${monthPrefix}`, 14, 20);
+    
+    doc.setFontSize(10);
+    doc.setTextColor(100, 116, 139);
+    doc.text(`Dicetak pada: ${d.toLocaleString('id-ID')}`, 14, 28);
+    
+    if (pdfChartRef.current) {
+      const canvas = await html2canvas(pdfChartRef.current, { scale: 2 });
+      const imgData = canvas.toDataURL('image/png');
+      doc.addImage(imgData, 'PNG', 14, 35, 150, 40);
+    }
+    
+    const tableData = staffList.map((s, i) => {
+      const sRecords = records.filter(r => r.staff_id === s.id && r.date.startsWith(monthPrefix));
+      let hadir = 0, late = 0, over = 0;
+      sRecords.forEach(r => {
+        const c = calcRecord(r);
+        if (c.status === 'Hadir' || c.status === 'Lembur' || c.status === 'Telat') hadir++;
+        if (c.lateMins > 0) late++;
+        if (c.overtimeMins > 0) over += c.overtimeMins;
+      });
+      return [
+        i + 1,
+        s.name,
+        s.division,
+        `${hadir} Hari`,
+        `${late}x Telat`,
+        `${Math.floor(over/60)}j ${over%60}m`,
+        Math.round((hadir / 22) * 100) + '%'
+      ];
+    });
+    
+    doc.autoTable({
+      startY: pdfChartRef.current ? 85 : 40,
+      head: [['No', 'Nama Karyawan', 'Divisi', 'Kehadiran', 'Keterlambatan', 'Total Lembur', 'Persentase']],
+      body: tableData,
+      theme: 'grid',
+      headStyles: { fillColor: [59, 130, 246], fontSize: 10, halign: 'center' },
+      bodyStyles: { fontSize: 9 },
+      alternateRowStyles: { fillColor: [248, 250, 252] },
+      styles: { cellPadding: 4 }
+    });
+    
+    doc.save(`Laporan_PDF_${monthPrefix}.pdf`);
+  };
 
   return (
     <>
@@ -717,7 +831,7 @@ function App() {
                               <div className="card kpi-card"><div className="kpi-icon"><Activity /></div><div className="kpi-value">{calc.status}</div><div className="kpi-label">Status hari ini</div></div>
                               <div className="card kpi-card"><div className="kpi-icon"><Clock /></div><div className="kpi-value">{rec?.check_in || "-"}</div><div className="kpi-label">Jam Masuk</div></div>
                               <div className="card kpi-card"><div className="kpi-icon"><LogOut /></div><div className="kpi-value">{rec?.check_out || "-"}</div><div className="kpi-label">Jam Pulang</div></div>
-                              <div className="card kpi-card"><div className="kpi-icon"><AlertCircle /></div><div className="kpi-value">{durationLabel(calc.overtimeMins)}</div><div className="kpi-label">Lembur</div></div>
+                              <div className="card kpi-card" style={{cursor:'pointer', transition:'0.2s', transform:'translateY(0)'}} onClick={() => setShowStaffOvertimeModal(true)} onMouseOver={e=>e.currentTarget.style.transform='translateY(-5px)'} onMouseOut={e=>e.currentTarget.style.transform='translateY(0)'}><div className="kpi-icon"><AlertCircle /></div><div className="kpi-value">{durationLabel(calc.overtimeMins)}</div><div className="kpi-label" style={{color:'#3b82f6', fontWeight:'600'}}>Detail Lembur</div></div>
                             </>
                           );
                         })()}
@@ -1008,6 +1122,60 @@ function App() {
       </div>
 
       {/* Modals moved OUTSIDE app-shell to prevent transform issues */}
+      {showStaffOvertimeModal && (() => {
+        const d = new Date();
+        const currentMonthPrefix = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+        const myMonthRecords = records.filter(r => r.staff_id === currentUser.id && r.date.startsWith(currentMonthPrefix) && calcRecord(r).overtimeMins > 0).sort((a,b) => new Date(b.date) - new Date(a.date));
+        let totalOvertimeMins = 0;
+        myMonthRecords.forEach(r => totalOvertimeMins += calcRecord(r).overtimeMins);
+        
+        const totalOvertimeHours = Math.floor(totalOvertimeMins / 60);
+        const validBonusHours = Math.min(totalOvertimeHours, 5);
+        const bonusAmount = validBonusHours * 50000;
+        
+        return (
+          <div className="modal-backdrop"><div className="modal animate-in" style={{maxWidth:'800px'}}>
+            <div className="modal-head"><h3>Detail Lembur Bulan Ini</h3><button className="btn ghost small" onClick={()=>setShowStaffOvertimeModal(false)}><X size={18}/></button></div>
+            <div className="modal-body">
+              <div className="grid two" style={{marginBottom:'20px'}}>
+                <div className="card" style={{background:'#f8faff', border:'1px solid #e2e8f0', display:'flex', flexDirection:'column', justifyContent:'center'}}>
+                  <div style={{color:'#64748b', fontSize:'13px', fontWeight:'600', marginBottom:'4px'}}>Total Waktu Lembur</div>
+                  <div style={{fontSize:'28px', fontWeight:'800', color:'#0f172a'}}>{durationLabel(totalOvertimeMins)}</div>
+                  <div style={{color:'#8b5cf6', fontSize:'12px', marginTop:'4px', fontWeight:'500'}}>Batas Maksimal Bonus: 5 Jam</div>
+                </div>
+                <div className="card" style={{background:'linear-gradient(135deg, #22c55e 0%, #16a34a 100%)', color:'white', display:'flex', flexDirection:'column', justifyContent:'center', border:'none'}}>
+                  <div style={{color:'rgba(255,255,255,0.8)', fontSize:'13px', fontWeight:'600', marginBottom:'4px'}}>Estimasi Bonus Lembur</div>
+                  <div style={{fontSize:'28px', fontWeight:'800'}}>Rp {bonusAmount.toLocaleString('id-ID')}</div>
+                  <div style={{color:'rgba(255,255,255,0.9)', fontSize:'12px', marginTop:'4px', fontWeight:'500'}}>Berdasarkan {validBonusHours} jam (Rp 50.000/jam)</div>
+                </div>
+              </div>
+              <h4 style={{marginBottom:'15px', color:'#334155'}}>Riwayat Lembur Bulan Ini</h4>
+              <div className="data-table-wrap">
+                <table className="data-table">
+                  <thead><tr><th>Tanggal</th><th>Jam Masuk</th><th>Jam Pulang</th><th>Durasi Lembur</th></tr></thead>
+                  <tbody>
+                    {myMonthRecords.length === 0 ? (
+                      <tr><td colSpan="4" style={{textAlign:'center', padding:'30px', color:'#94a3b8'}}>Tidak ada data lembur bulan ini.</td></tr>
+                    ) : (
+                      myMonthRecords.map(r => {
+                        const m = calcRecord(r).overtimeMins;
+                        return (
+                          <tr key={r.id}>
+                            <td><b>{fmtDate(r.date)}</b></td>
+                            <td>{r.check_in}</td>
+                            <td>{r.check_out}</td>
+                            <td><span style={{color:'#8b5cf6', fontWeight:'600', background:'#f3e8ff', padding:'4px 8px', borderRadius:'6px', fontSize:'12px'}}>{durationLabel(m)}</span></td>
+                          </tr>
+                        );
+                      })
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div></div>
+        );
+      })()}
       {showManualModal && (
         <div className="modal-backdrop"><div className="modal animate-in" style={{maxWidth:'900px'}}>
           <div className="modal-head"><h3>Tambah Absen Manual</h3><button className="btn ghost small" onClick={()=>setShowManualModal(false)}><X size={18}/></button></div>
@@ -1162,14 +1330,42 @@ function App() {
       {showMonthlyReport && (
         <div className="modal-backdrop" onClick={() => setShowMonthlyReport(false)}>
           <div className="modal animate-in" onClick={e => e.stopPropagation()} style={{maxWidth: '850px', width: '95%', padding:'25px'}}>
-            <div className="modal-head" style={{borderBottom:'1px solid #e2e8f0', paddingBottom:'15px', marginBottom:'15px'}}>
-              <h3>Laporan Rekap Bulanan - Mei 2026</h3>
-              <button className="btn ghost small" onClick={() => setShowMonthlyReport(false)}><X size={18}/></button>
+            <div className="modal-head" style={{borderBottom:'1px solid #e2e8f0', paddingBottom:'15px', marginBottom:'15px', display:'flex', justifyContent:'space-between', alignItems:'center'}}>
+              <h3 style={{margin:0}}>Laporan Rekap Bulanan - Mei 2026</h3>
+              <div style={{display:'flex', gap:'10px', alignItems:'center'}}>
+                <button 
+                  onClick={handleDownloadExcel} 
+                  style={{background:'linear-gradient(135deg, #10b981 0%, #059669 100%)', color:'white', border:'none', padding:'8px 16px', borderRadius:'10px', display:'flex', alignItems:'center', gap:'8px', cursor:'pointer', fontSize:'13px', fontWeight:'600', boxShadow:'0 4px 12px rgba(16, 185, 129, 0.2)', transition:'0.2s'}}
+                  onMouseOver={e=>e.currentTarget.style.transform='translateY(-2px)'} 
+                  onMouseOut={e=>e.currentTarget.style.transform='translateY(0)'}
+                >
+                  <Download size={16}/> Excel
+                </button>
+                <button 
+                  onClick={handleDownloadPDF} 
+                  style={{background:'linear-gradient(135deg, #f43f5e 0%, #e11d48 100%)', color:'white', border:'none', padding:'8px 16px', borderRadius:'10px', display:'flex', alignItems:'center', gap:'8px', cursor:'pointer', fontSize:'13px', fontWeight:'600', boxShadow:'0 4px 12px rgba(225, 29, 72, 0.2)', transition:'0.2s'}}
+                  onMouseOver={e=>e.currentTarget.style.transform='translateY(-2px)'} 
+                  onMouseOut={e=>e.currentTarget.style.transform='translateY(0)'}
+                >
+                  <Download size={16}/> PDF
+                </button>
+                <button className="btn ghost small" onClick={() => setShowMonthlyReport(false)} style={{marginLeft:'10px'}}><X size={18}/></button>
+              </div>
             </div>
             
-            <div style={{background:'#f8fafc', padding:'15px', borderRadius:'14px', border:'1px solid #e2e8f0', marginBottom:'15px', display:'flex', gap:'25px', flexWrap:'wrap', fontSize:'14px'}}>
-              <div><strong>Bulan Aktif:</strong> <span style={{color:'var(--brand)', fontWeight:'700'}}>Mei 2026</span></div>
-              <div><strong>Hari Kerja Efektif:</strong> <span style={{color:'#1e40af', fontWeight:'700'}}>17 Hari Kerja</span> <span style={{fontSize:'12px', color:'#64748b', marginLeft:'5px'}}>(Tanpa Akhir Pekan & Hari Libur Nasional)</span></div>
+            <div ref={pdfChartRef} style={{background:'#f8fafc', padding:'15px', borderRadius:'14px', border:'1px solid #e2e8f0', marginBottom:'15px', display:'flex', gap:'25px', flexWrap:'wrap', fontSize:'14px', alignItems:'center'}}>
+              <div style={{flex:1, minWidth:'200px'}}>
+                <div style={{color:'#64748b', fontSize:'12px', fontWeight:'600', textTransform:'uppercase', letterSpacing:'1px', marginBottom:'4px'}}>Bulan Aktif</div>
+                <div style={{color:'var(--brand)', fontWeight:'800', fontSize:'24px'}}>Mei 2026</div>
+              </div>
+              <div style={{flex:1, minWidth:'200px'}}>
+                <div style={{color:'#64748b', fontSize:'12px', fontWeight:'600', textTransform:'uppercase', letterSpacing:'1px', marginBottom:'4px'}}>Hari Kerja Efektif</div>
+                <div style={{color:'#1e40af', fontWeight:'800', fontSize:'24px'}}>17 Hari <span style={{fontSize:'12px', color:'#94a3b8', fontWeight:'500'}}>(Tanpa Akhir Pekan & Libur)</span></div>
+              </div>
+              <div style={{flex:1, minWidth:'200px'}}>
+                <div style={{color:'#64748b', fontSize:'12px', fontWeight:'600', textTransform:'uppercase', letterSpacing:'1px', marginBottom:'4px'}}>Total Staf Aktif</div>
+                <div style={{color:'#0f172a', fontWeight:'800', fontSize:'24px'}}>{staffList.length} <span style={{fontSize:'12px', color:'#94a3b8', fontWeight:'500'}}>Orang</span></div>
+              </div>
             </div>
 
             <div style={{marginBottom:'15px'}}>
