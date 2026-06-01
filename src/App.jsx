@@ -234,6 +234,13 @@ function App() {
 
   const calcRecord = (record) => {
     if (!record) return { status: 'Belum absen', statusClass: 'menunggu', lateMins: 0, overtimeMins: 0 };
+    if (!record.check_in && !record.check_out) {
+      let st = 'Belum absen';
+      let cls = 'menunggu';
+      if (record.note && record.note.toLowerCase().includes('cuti')) { st = 'Cuti'; cls = 'izin'; }
+      if (record.note && record.note.toLowerCase().includes('sakit')) { st = 'Sakit'; cls = 'izin'; }
+      return { status: st, statusClass: cls, lateMins: 0, overtimeMins: 0 };
+    }
     const start = minutesOf(settings.start) + Number(settings.tolerance || 0);
     const end = minutesOf(settings.end);
     const overtimeStart = minutesOf(settings.overtimeAfter);
@@ -241,9 +248,11 @@ function App() {
     const cout = minutesOf(record.check_out);
     const lateMins = cin !== null && cin > start ? cin - start : 0;
     const overtimeMins = cout !== null && cout >= overtimeStart ? Math.max(0, cout - end) : 0;
-    let status = "Sudah absen", statusClass = "hadir";
+    let status = "Hadir", statusClass = "hadir";
     if (lateMins > 0) { status = "Telat"; statusClass = "telat"; }
     if (overtimeMins > 0) { status = "Lembur"; statusClass = "lembur"; }
+    if (record.note && record.note.includes('Absensi Sabtu')) { status = "Hadir (1/2 Hari)"; statusClass = "hadir"; }
+    if (record.note && record.note.toLowerCase().includes('izin')) { status = record.note; statusClass = "izin"; }
     return { lateMins, overtimeMins, status, statusClass };
   };
 
@@ -1418,7 +1427,10 @@ function App() {
                     }
                     return filtered.map((s, idx) => {
                       const staffRecords = records.filter(r => r.staff_id === s.id && r.date.startsWith(reportMonth));
-                      const hadirCount = staffRecords.filter(r => ['Hadir', 'Lembur', 'Telat'].includes(calcRecord(r).status)).length;
+                      const hadirCount = staffRecords.filter(r => {
+                        const stat = calcRecord(r).status;
+                        return ['Hadir', 'Lembur', 'Telat', 'Hadir (1/2 Hari)'].includes(stat) || stat.toLowerCase().includes('izin');
+                      }).length;
                       const workingDays = displayWorkingDays;
                       const percentage = workingDays > 0 ? ((hadirCount / workingDays) * 100).toFixed(0) : 0;
                       
