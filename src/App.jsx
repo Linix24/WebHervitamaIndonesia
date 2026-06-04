@@ -37,27 +37,41 @@ const parseReason = (reasonStr) => {
 };
 
 
-const getChartData = (records, settings, numDays = 7) => {
+const getChartData = (records, settings, filterValue = '7') => {
   const map = {};
   const d = new Date();
   const start = minutesOf(settings.start) + Number(settings.tolerance || 0);
 
-  for (let i = numDays - 1; i >= 0; i--) {
-    const day = new Date(d);
-    day.setDate(day.getDate() - i);
-    const y = day.getFullYear();
-    const m = String(day.getMonth() + 1).padStart(2, "0");
-    const da = String(day.getDate()).padStart(2, "0");
+  let startDate = new Date();
+  let endDate = new Date();
+
+  if (filterValue === 'bulan_ini') {
+    startDate = new Date(d.getFullYear(), d.getMonth(), 1);
+    endDate = new Date(d.getFullYear(), d.getMonth() + 1, 0);
+  } else if (filterValue === 'bulan_lalu') {
+    startDate = new Date(d.getFullYear(), d.getMonth() - 1, 1);
+    endDate = new Date(d.getFullYear(), d.getMonth(), 0);
+  } else {
+    const numDays = Number(filterValue);
+    startDate.setDate(startDate.getDate() - numDays + 1);
+  }
+
+  let curr = new Date(startDate);
+  while (curr <= endDate) {
+    const y = curr.getFullYear();
+    const m = String(curr.getMonth() + 1).padStart(2, "0");
+    const da = String(curr.getDate()).padStart(2, "0");
     const key = `${y}-${m}-${da}`;
     
     map[key] = { 
       date: key, 
-      display: numDays > 7 ? `${day.getDate()} ${day.toLocaleDateString('id-ID', {month:'short'})}` : day.toLocaleDateString('id-ID', {weekday:'short'}), 
+      display: filterValue === '7' ? curr.toLocaleDateString('id-ID', {weekday:'short'}) : `${curr.getDate()} ${curr.toLocaleDateString('id-ID', {month:'short'})}`, 
       Hadir: 0, 
       Telat: 0,
       PulangNormal: 0,
       Lembur: 0
     };
+    curr.setDate(curr.getDate() + 1);
   }
   
   records.forEach(r => {
@@ -108,7 +122,7 @@ function App() {
   const [showRevisionModal, setShowRevisionModal] = useState(null);
   const [showStaffOvertimeModal, setShowStaffOvertimeModal] = useState(false);
   const [revisionInput, setRevisionInput] = useState('');
-  const [chartDays, setChartDays] = useState(7); 
+  const [chartDays, setChartDays] = useState('7'); 
   const [chartType, setChartType] = useState('datang'); 
   const [showMonthlyReport, setShowMonthlyReport] = useState(false);
   const [reportSearch, setReportSearch] = useState('');
@@ -581,8 +595,32 @@ function App() {
                 {currentRole === 'admin' ? (
                   <>
                     {tab === 'home' && (
-                      <>
-                        <div className="grid kpi">
+                        const dNow = new Date();
+                        let cStart = new Date();
+                        let cEnd = new Date();
+                        if (chartDays === 'bulan_ini') {
+                          cStart = new Date(dNow.getFullYear(), dNow.getMonth(), 1);
+                          cEnd = new Date(dNow.getFullYear(), dNow.getMonth() + 1, 0);
+                        } else if (chartDays === 'bulan_lalu') {
+                          cStart = new Date(dNow.getFullYear(), dNow.getMonth() - 1, 1);
+                          cEnd = new Date(dNow.getFullYear(), dNow.getMonth(), 0);
+                        } else {
+                          cStart.setDate(cStart.getDate() - Number(chartDays) + 1);
+                        }
+                        cStart.setHours(0,0,0,0);
+                        cEnd.setHours(23,59,59,999);
+
+                        const filteredChartRecords = records.filter(r => {
+                          const rd = new Date(r.date);
+                          return rd >= cStart && rd <= cEnd;
+                        });
+                        const filteredChartRequests = requests.filter(r => {
+                          const rd = new Date(r.date);
+                          return rd >= cStart && rd <= cEnd;
+                        });
+
+                        return (
+                          <div className="grid kpi">
                           <div className="card kpi-card"><div className="kpi-icon"><Users/></div><div className="kpi-value">{staffList.length}</div><div className="kpi-label">Total Staff</div></div>
                           <div className="card kpi-card" style={{cursor:'pointer', transition:'0.2s', transform:'translateY(0)'}} onClick={() => {
                             const data = records.filter(r=>r.date===todayKey()).map(r=>({ name: r.staff_name, detail: `Masuk: ${r.check_in || '-'}` }));
@@ -600,12 +638,14 @@ function App() {
                               <h3>Tren Kehadiran</h3>
                               <select 
                                 value={chartDays} 
-                                onChange={e=>setChartDays(Number(e.target.value))} 
+                                onChange={e=>setChartDays(e.target.value)} 
                                 style={{padding:'6px 12px', borderRadius:'8px', border:'1px solid #e2e8f0', background:'white', fontSize:'13px', outline:'none', cursor:'pointer', fontWeight:'500', color:'#475569'}}
                               >
-                                <option value={7}>7 Hari Terakhir</option>
-                                <option value={14}>14 Hari Terakhir</option>
-                                <option value={30}>1 Bulan Terakhir</option>
+                                <option value="7">7 Hari Terakhir</option>
+                                <option value="14">14 Hari Terakhir</option>
+                                <option value="30">1 Bulan Terakhir</option>
+                                <option value="bulan_ini">Bulan Ini</option>
+                                <option value="bulan_lalu">Bulan Lalu</option>
                               </select>
                               
                               <div style={{margin: 0, padding: '2px', background: '#f1f5f9', borderRadius: '10px', display: 'inline-flex', border: '1px solid #e2e8f0'}}>
@@ -627,24 +667,24 @@ function App() {
                             </div>
                             <div className="mini-metrics" style={{margin:0}}>
                               <div className="mini-metric" style={{padding:'8px 15px', cursor:'pointer'}} onClick={() => {
-                                const data = records.slice(0, 20).map(r => ({ name: r.staff_name, detail: `Tgl: ${fmtDate(r.date)} • ${r.check_in}` }));
-                                setDetailList({ title: 'Total Absensi (20 Data Terakhir)', data });
-                              }}><b>{records.length}</b><span>Total Absensi</span></div>
+                                const data = filteredChartRecords.slice(0, 20).map(r => ({ name: r.staff_name, detail: `Tgl: ${fmtDate(r.date)} • ${r.check_in}` }));
+                                setDetailList({ title: 'Total Absensi', data });
+                              }}><b>{filteredChartRecords.length}</b><span>Total Absensi</span></div>
                               <div className="mini-metric" style={{padding:'8px 15px', cursor:'pointer'}} onClick={() => {
-                                const data = records.filter(r=>calcRecord(r).status==='Telat').slice(0, 20).map(r => ({ name: r.staff_name, detail: `Tgl: ${fmtDate(r.date)} • Telat: ${r.check_in}` }));
+                                const data = filteredChartRecords.filter(r=>calcRecord(r).status==='Telat').slice(0, 20).map(r => ({ name: r.staff_name, detail: `Tgl: ${fmtDate(r.date)} • Telat: ${r.check_in}` }));
                                 setDetailList({ title: 'Rincian Telat', data });
-                              }}><b>{records.filter(r=>calcRecord(r).status==='Telat').length}</b><span>Total Telat</span></div>
+                              }}><b>{filteredChartRecords.filter(r=>calcRecord(r).status==='Telat').length}</b><span>Total Telat</span></div>
                               <div className="mini-metric" style={{padding:'8px 15px', cursor:'pointer'}} onClick={() => {
-                                const data = requests.filter(r=>r.status==='Disetujui').slice(0, 20).map(r => ({ name: r.staff_name, detail: `${r.type} • ${fmtDate(r.date)}` }));
-                                setDetailList({ title: 'Izin/Cuti Terakhir', data });
-                              }}><b>{requests.filter(r=>r.status==='Disetujui').length}</b><span>Izin/Cuti</span></div>
+                                const data = filteredChartRequests.filter(r=>r.status==='Disetujui').slice(0, 20).map(r => ({ name: r.staff_name, detail: `${r.type} • ${fmtDate(r.date)}` }));
+                                setDetailList({ title: 'Izin/Cuti', data });
+                              }}><b>{filteredChartRequests.filter(r=>r.status==='Disetujui').length}</b><span>Izin/Cuti</span></div>
                               <div className="mini-metric" style={{padding:'8px 15px', cursor:'pointer'}} onClick={() => {
-                                const data = records.filter(r=>calcRecord(r).overtimeMins > 0).slice(0, 20).map(r => {
+                                const data = filteredChartRecords.filter(r=>calcRecord(r).overtimeMins > 0).slice(0, 20).map(r => {
                                   const calc = calcRecord(r);
                                   return { name: r.staff_name, detail: `Tgl: ${fmtDate(r.date)} • Durasi: ${durationLabel(calc.overtimeMins)} (Pulang: ${r.check_out})` };
                                 });
-                                setDetailList({ title: 'Karyawan Lembur (20 Data Terakhir)', data });
-                              }}><b>{records.filter(r=>calcRecord(r).overtimeMins > 0).length}</b><span>Total Lembur</span></div>
+                                setDetailList({ title: 'Karyawan Lembur', data });
+                              }}><b>{filteredChartRecords.filter(r=>calcRecord(r).overtimeMins > 0).length}</b><span>Total Lembur</span></div>
                             </div>
                           </div>
                           <div style={{width:'100%', height: 320, marginTop: '10px'}}>
