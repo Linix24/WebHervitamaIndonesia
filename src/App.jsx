@@ -594,7 +594,7 @@ function App() {
               <div className="grid animate-slide-up" key={tab}>
                 {currentRole === 'admin' ? (
                   <>
-                    {tab === 'home' && (
+                    {tab === 'home' && (() => {
                         const dNow = new Date();
                         let cStart = new Date();
                         let cEnd = new Date();
@@ -620,7 +620,8 @@ function App() {
                         });
 
                         return (
-                          <div className="grid kpi">
+                          <>
+                            <div className="grid kpi">
                           <div className="card kpi-card"><div className="kpi-icon"><Users/></div><div className="kpi-value">{staffList.length}</div><div className="kpi-label">Total Staff</div></div>
                           <div className="card kpi-card" style={{cursor:'pointer', transition:'0.2s', transform:'translateY(0)'}} onClick={() => {
                             const data = records.filter(r=>r.date===todayKey()).map(r=>({ name: r.staff_name, detail: `Masuk: ${r.check_in || '-'}` }));
@@ -721,10 +722,11 @@ function App() {
                                 )}
                               </AreaChart>
                             </ResponsiveContainer>
+                            </div>
                           </div>
-                        </div>
-                      </>
-                    )}
+                        </>
+                      );
+                  })()}
                     {tab === 'monitor' && (
                       <div className="card">
                         <div className="table-tools">
