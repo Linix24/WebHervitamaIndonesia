@@ -770,7 +770,7 @@ function App() {
                     )}
                     {tab === 'approval' && (
                       <div className="grid">
-                        {requests.map(r => {
+                        {[...requests].sort((a, b) => b.id - a.id).map(r => {
                           const parsed = parseReason(r.reason);
                           return (
                             <div key={r.id} className="card" style={{display:'flex', flexDirection:'column', justifyContent:'space-between'}}>
